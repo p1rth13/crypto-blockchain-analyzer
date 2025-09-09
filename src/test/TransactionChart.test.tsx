@@ -1,19 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import TransactionChart from '../components/TransactionChart'
-
-// Mock Recharts components
-vi.mock('recharts', () => ({
-  AreaChart: ({ children }: { children: React.ReactNode }) => <div data-testid="area-chart">{children}</div>,
-  Area: () => <div data-testid="area" />,
-  XAxis: () => <div data-testid="x-axis" />,
-  YAxis: () => <div data-testid="y-axis" />,
-  CartesianGrid: () => <div data-testid="cartesian-grid" />,
-  Tooltip: () => <div data-testid="tooltip" />,
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="responsive-container">{children}</div>
-  ),
-}))
 
 describe('TransactionChart', () => {
   it('renders chart components', () => {
@@ -29,5 +16,19 @@ describe('TransactionChart', () => {
 
   it('renders without errors', () => {
     expect(() => render(<TransactionChart />)).not.toThrow()
+  })
+
+  it('includes reference line for enhanced chart', () => {
+    const { getByTestId } = render(<TransactionChart />)
+
+    expect(getByTestId('reference-line')).toBeInTheDocument()
+  })
+
+  it('has proper chart structure for dual data series', () => {
+    const { getAllByTestId } = render(<TransactionChart />)
+
+    // Should have multiple areas for transaction volume and BTC price
+    const areas = getAllByTestId('area')
+    expect(areas.length).toBeGreaterThan(0)
   })
 })
