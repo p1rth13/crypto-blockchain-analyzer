@@ -1,21 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, ArrowRight, Clock, Coins, RefreshCw } from 'lucide-react';
 
-interface BitcoinTransaction {
-  hash: string;
-  time: number;
-  inputs: Array<{
-    address: string;
-    value: number;
-  }>;
-  outputs: Array<{
-    address: string;
-    value: number;
-  }>;
-  fee: number;
-  size: number;
-}
-
 interface TransactionDisplay {
   hash: string;
   timestamp: string;
@@ -234,14 +219,14 @@ const LiveTransactionTracker: React.FC = () => {
 
   // Effect for live tracking
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
 
     if (isLive) {
       // Fetch immediately when starting live tracking
       fetchLatestTransactions();
       
       // Then fetch every 30 seconds
-      interval = setInterval(fetchLatestTransactions, 30000);
+      interval = setInterval(fetchLatestTransactions, 30000) as unknown as number;
     }
 
     return () => {

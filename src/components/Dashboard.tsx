@@ -5,7 +5,6 @@ import {
   AlertTriangle, 
   Bitcoin, 
   Activity,
-  Search,
   Zap,
   TrendingUp,
   Eye,
@@ -37,7 +36,6 @@ interface LatestBlock {
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [searchTerm, setSearchTerm] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [latestBlock, setLatestBlock] = useState<LatestBlock | null>(null);
   const [loadingBlock, setLoadingBlock] = useState(false);
