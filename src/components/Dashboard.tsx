@@ -51,7 +51,7 @@ const Dashboard: React.FC = () => {
       <div className="min-h-screen bg-dark-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-20 h-20 border-4 border-electric-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400 animate-pulse">Initializing Crypto Analysis Dashboard...</p>
+          <p className="text-dark-400 animate-pulse">Initializing Crypto Analysis Dashboard...</p>
         </div>
       </div>
     );
@@ -82,20 +82,20 @@ const Dashboard: React.FC = () => {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-electric-400 to-bitcoin-400 bg-clip-text text-transparent">
                   CryptoAnalysis
                 </h1>
-                <p className="text-sm text-gray-400 font-mono">Bitcoin Blockchain Intelligence Platform</p>
+                <p className="text-sm text-dark-400 font-mono">Bitcoin Blockchain Intelligence Platform</p>
               </div>
             </div>
             
             {/* Search & Actions */}
             <div className="flex items-center space-x-4">
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-electric-400 transition-colors" />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400 group-hover:text-electric-400 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search transactions, wallets, addresses..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 pr-6 py-3 w-80 glass-card text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-electric-500 focus:border-transparent transition-all duration-300 focus:shadow-glow text-sm"
+                  className="pl-12 pr-6 py-3 w-80 glass-card text-dark-100 placeholder-dark-500 focus:ring-2 focus:ring-electric-500 focus:border-transparent transition-all duration-300 focus:shadow-glow text-sm"
                 />
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-electric-500/20 to-bitcoin-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur"></div>
               </div>
@@ -108,7 +108,7 @@ const Dashboard: React.FC = () => {
                     className="glass-button w-12 h-12 flex items-center justify-center group relative overflow-hidden"
                     title={action.label}
                   >
-                    <action.icon className="w-5 h-5 text-gray-400 group-hover:text-electric-400 transition-colors relative z-10" />
+                    <action.icon className="w-5 h-5 text-dark-400 group-hover:text-electric-400 transition-colors relative z-10" />
                     <div className="absolute inset-0 bg-gradient-to-r from-electric-500/20 to-bitcoin-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </button>
                 ))}
@@ -129,7 +129,7 @@ const Dashboard: React.FC = () => {
                 className={`relative flex items-center space-x-2 py-6 px-1 border-b-2 font-medium text-sm transition-all duration-300 group ${
                   activeTab === tab.id
                     ? 'border-electric-500 text-electric-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-electric-300'
+                    : 'border-transparent text-dark-500 hover:text-dark-300 hover:border-electric-300'
                 }`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
@@ -202,8 +202,8 @@ const Dashboard: React.FC = () => {
                 <div className="glass-card p-8 animate-slide-up" style={{ animationDelay: '0.5s' }}>
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-100 mb-2">Transaction Volume Analysis</h3>
-                      <p className="text-sm text-gray-400">Last 6 months blockchain activity</p>
+                      <h3 className="text-xl font-semibold text-dark-100 mb-2">Transaction Volume Analysis</h3>
+                      <p className="text-sm text-dark-400">Last 6 months blockchain activity</p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse"></div>
@@ -216,8 +216,8 @@ const Dashboard: React.FC = () => {
                 <div className="glass-card p-8 animate-slide-up" style={{ animationDelay: '0.6s' }}>
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-100 mb-2">Anomaly Detection</h3>
-                      <p className="text-sm text-gray-400">Real-time threat monitoring</p>
+                      <h3 className="text-xl font-semibold text-dark-100 mb-2">Anomaly Detection</h3>
+                      <p className="text-sm text-dark-400">Real-time threat monitoring</p>
                     </div>
                     <button className="glow-button px-4 py-2 rounded-lg text-white text-sm font-medium flex items-center space-x-2">
                       <Eye className="w-4 h-4" />
@@ -237,7 +237,7 @@ const Dashboard: React.FC = () => {
                   <h2 className="text-3xl font-bold bg-gradient-to-r from-bitcoin-400 to-electric-400 bg-clip-text text-transparent">
                     Anomaly Detection Engine
                   </h2>
-                  <p className="text-gray-400 mt-2">Advanced AI-powered threat detection and analysis</p>
+                  <p className="text-dark-400 mt-2">Advanced AI-powered threat detection and analysis</p>
                 </div>
                 <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
               </div>
@@ -252,7 +252,7 @@ const Dashboard: React.FC = () => {
                   <h2 className="text-3xl font-bold bg-gradient-to-r from-electric-400 to-success-400 bg-clip-text text-transparent">
                     Wallet Intelligence Analysis
                   </h2>
-                  <p className="text-gray-400 mt-2">Deep dive into Bitcoin wallet behaviors and patterns</p>
+                  <p className="text-dark-400 mt-2">Deep dive into Bitcoin wallet behaviors and patterns</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2 text-sm">

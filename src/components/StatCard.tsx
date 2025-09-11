@@ -40,7 +40,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, ch
   const getTrendColor = () => {
     if (trend === 'up') return 'text-success-400';
     if (trend === 'down') return 'text-danger-400';
-    return 'text-gray-400';
+    return 'text-dark-400';
   };
 
   const getTrendIcon = () => {
@@ -57,8 +57,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, ch
       <div className="p-6 relative z-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-400 mb-1 tracking-wide uppercase">{title}</p>
-            <p className="text-3xl font-bold text-gray-100 tracking-tight">
+            <p className="text-sm font-medium text-dark-400 mb-1 tracking-wide uppercase">{title}</p>
+            <p className="text-3xl font-bold text-dark-100 tracking-tight">
               {value}
             </p>
           </div>
@@ -73,7 +73,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, ch
             <span className={`text-sm font-bold ${getTrendColor()}`}>
               {getTrendIcon()} {change}
             </span>
-            <span className="text-xs text-gray-500">vs last month</span>
+            <span className="text-xs text-dark-500">vs last month</span>
           </div>
         )}
       </div>

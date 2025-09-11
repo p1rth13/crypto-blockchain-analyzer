@@ -17,10 +17,10 @@ const TransactionChart: React.FC = () => {
     if (active && payload && payload.length) {
       return (
         <div className="glass-card p-4 border border-white/20 shadow-glow min-w-[200px]">
-          <p className="text-gray-200 font-semibold mb-2">{`Month: ${label}`}</p>
+          <p className="text-dark-200 font-semibold mb-2">{`Month: ${label}`}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between mb-1">
-              <span className="text-gray-300 text-sm">{entry.name}:</span>
+              <span className="text-dark-300 text-sm">{entry.name}:</span>
               <span 
                 className="font-bold text-sm ml-2"
                 style={{ color: entry.color }}
@@ -201,15 +201,15 @@ const TransactionChart: React.FC = () => {
       <div className="flex items-center justify-center space-x-6 mt-4">
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 rounded-full bg-electric-500 shadow-glow"></div>
-          <span className="text-xs text-gray-300 font-medium">Total Transactions</span>
+          <span className="text-xs text-dark-300 font-medium">Total Transactions</span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 rounded-full bg-danger-500 shadow-glow-danger"></div>
-          <span className="text-xs text-gray-300 font-medium">Suspicious</span>
+          <span className="text-xs text-dark-300 font-medium">Suspicious</span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 rounded-full bg-bitcoin-500 shadow-glow-bitcoin"></div>
-          <span className="text-xs text-gray-300 font-medium">BTC Price</span>
+          <span className="text-xs text-dark-300 font-medium">BTC Price</span>
         </div>
       </div>
     </div>

@@ -54,7 +54,7 @@ const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({ detailed = false })
       case 'high': return 'text-red-600 bg-red-100';
       case 'medium': return 'text-yellow-600 bg-yellow-100';
       case 'low': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
+      default: return 'text-dark-600 bg-dark-100';
     }
   };
 
@@ -70,23 +70,23 @@ const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({ detailed = false })
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-4 bg-red-50 rounded-lg">
             <div className="text-2xl font-bold text-red-600">23</div>
-            <div className="text-sm text-gray-600">High Risk</div>
+            <div className="text-sm text-dark-600">High Risk</div>
           </div>
           <div className="text-center p-4 bg-yellow-50 rounded-lg">
             <div className="text-2xl font-bold text-yellow-600">45</div>
-            <div className="text-sm text-gray-600">Medium Risk</div>
+            <div className="text-sm text-dark-600">Medium Risk</div>
           </div>
         </div>
         
         <div className="space-y-3">
           {anomalies.slice(0, 3).map((anomaly) => (
-            <div key={anomaly.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+            <div key={anomaly.id} className="flex items-center space-x-3 p-3 bg-dark-50 rounded-lg">
               <div className={`flex items-center justify-center w-8 h-8 rounded-full ${getSeverityColor(anomaly.severity)}`}>
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">{anomaly.type}</div>
-                <div className="text-xs text-gray-500">{anomaly.description}</div>
+                <div className="text-sm font-medium text-dark-900">{anomaly.type}</div>
+                <div className="text-xs text-dark-500">{anomaly.description}</div>
               </div>
               <div className={`text-sm font-medium ${getRiskColor(anomaly.risk)}`}>
                 {anomaly.risk}%
@@ -152,41 +152,41 @@ const AnomalyDetection: React.FC<AnomalyDetectionProps> = ({ detailed = false })
       </div>
 
       {/* Anomalies Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Recent Anomalies</h3>
+      <div className="bg-white border border-dark-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-dark-200">
+          <h3 className="text-lg font-medium text-dark-900">Recent Anomalies</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-dark-200">
+            <thead className="bg-dark-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Wallet
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Risk Score
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Timestamp
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Severity
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-dark-200">
               {anomalies.map((anomaly) => (
-                <tr key={anomaly.id} className="hover:bg-gray-50">
+                <tr key={anomaly.id} className="hover:bg-dark-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{anomaly.type}</div>
-                      <div className="text-sm text-gray-500">{anomaly.description}</div>
+                      <div className="text-sm font-medium text-dark-900">{anomaly.type}</div>
+                      <div className="text-sm text-dark-500">{anomaly.description}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -63,7 +63,7 @@ const WalletAnalysis: React.FC = () => {
       case 'High Risk': return 'bg-red-100 text-red-800';
       case 'Suspicious': return 'bg-yellow-100 text-yellow-800';
       case 'Normal': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-dark-100 text-dark-800';
     }
   };
 
@@ -76,13 +76,13 @@ const WalletAnalysis: React.FC = () => {
       {/* Search Bar */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
           <input
             type="text"
             placeholder="Search wallet address..."
             value={searchWallet}
             onChange={(e) => setSearchWallet(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 border border-dark-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
         <button className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
@@ -130,40 +130,40 @@ const WalletAnalysis: React.FC = () => {
       </div>
 
       {/* Wallets Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Monitored Wallets</h3>
+      <div className="bg-white border border-dark-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-dark-200">
+          <h3 className="text-lg font-medium text-dark-900">Monitored Wallets</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-dark-200">
+            <thead className="bg-dark-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Wallet Address
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Balance
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Transactions
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Risk Score
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Last Activity
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {walletData.map((wallet) => (
-                <tr key={wallet.address} className="hover:bg-gray-50">
+                <tr key={wallet.address} className="hover:bg-dark-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
                       <div className="text-sm font-mono text-gray-900">
@@ -206,7 +206,7 @@ const WalletAnalysis: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {wallet.lastActivity}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-500">
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setSelectedWallet(wallet.address)}
@@ -245,15 +245,15 @@ const WalletAnalysis: React.FC = () => {
               <div key={wallet.address} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <div className="text-sm text-gray-500">Address</div>
+                    <div className="text-sm text-dark-500">Address</div>
                     <div className="text-sm font-mono text-gray-900">{wallet.address}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-500">Balance</div>
+                    <div className="text-sm text-dark-500">Balance</div>
                     <div className="text-lg font-semibold text-gray-900">{wallet.balance}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-500">First Seen</div>
+                    <div className="text-sm text-dark-500">First Seen</div>
                     <div className="text-sm text-gray-900">{wallet.firstSeen}</div>
                   </div>
                 </div>
@@ -262,18 +262,18 @@ const WalletAnalysis: React.FC = () => {
                   <h4 className="text-md font-medium text-gray-900 mb-3">Recent Activity</h4>
                   <div className="space-y-2">
                     {wallet.recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 bg-dark-50 rounded-lg">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {activity.type} {activity.amount}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-dark-500">
                             {activity.type === 'Mixed' ? (activity as any).note : 
                              activity.type === 'Received' ? `From: ${(activity as any).from?.substring(0, 10)}...` :
                              `To: ${(activity as any).to?.substring(0, 10)}...`}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-500">{activity.time}</div>
+                        <div className="text-sm text-dark-500">{activity.time}</div>
                       </div>
                     ))}
                   </div>

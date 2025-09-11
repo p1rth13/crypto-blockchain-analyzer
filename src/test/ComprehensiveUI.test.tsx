@@ -176,7 +176,7 @@ describe('Comprehensive UI Test Suite', () => {
       render(<Dashboard />)
       
       const subtitle = screen.getByText('Bitcoin Blockchain Intelligence Platform')
-      expect(subtitle).toHaveClass('text-gray-400')
+      expect(subtitle).toHaveClass('text-dark-400')
     })
   })
 })

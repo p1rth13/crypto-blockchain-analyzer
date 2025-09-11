@@ -43,10 +43,10 @@ describe('Glass Morphism UI Design System', () => {
   })
 
   it('renders enhanced search input with glass effect', () => {
-    const { container } = render(<Dashboard />)
+    render(<Dashboard />)
     
     const searchInput = screen.getByPlaceholderText('Search transactions, wallets, addresses...')
-    expect(searchInput).toHaveClass('glass-card', 'text-gray-100', 'placeholder-gray-500')
+    expect(searchInput).toHaveClass('glass-card', 'text-dark-100', 'placeholder-dark-500')
     
     // Check for focus states
     expect(searchInput).toHaveClass('focus:ring-2', 'focus:ring-electric-500')
@@ -122,7 +122,7 @@ describe('Color System and Theming', () => {
     render(<Dashboard />)
     
     const subtitle = screen.getByText('Bitcoin Blockchain Intelligence Platform')
-    expect(subtitle).toHaveClass('text-gray-400')
+    expect(subtitle).toHaveClass('text-dark-400')
   })
 })
 

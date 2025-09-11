@@ -169,7 +169,7 @@ describe('Enhanced StatCard Features', () => {
     )
 
     const valueElement = screen.getByText('2,156,420')
-    expect(valueElement).toHaveClass('text-3xl', 'font-bold', 'text-gray-100', 'tracking-tight')
+    expect(valueElement).toHaveClass('text-3xl', 'font-bold', 'text-dark-100', 'tracking-tight')
   })
 
   it('renders title with uppercase tracking', () => {
@@ -183,6 +183,6 @@ describe('Enhanced StatCard Features', () => {
     )
 
     const titleElement = screen.getByText('Uppercase Title')
-    expect(titleElement).toHaveClass('text-sm', 'font-medium', 'text-gray-400', 'tracking-wide', 'uppercase')
+    expect(titleElement).toHaveClass('text-sm', 'font-medium', 'text-dark-400', 'tracking-wide', 'uppercase')
   })
 })
