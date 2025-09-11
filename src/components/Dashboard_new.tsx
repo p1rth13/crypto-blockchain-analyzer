@@ -13,18 +13,11 @@ import {
   Bell,
   ExternalLink,
   Copy,
-  Loader,
-  Hash,
-  Database,
-  Wallet
+  Loader
 } from 'lucide-react';
 import TransactionChart from './TransactionChart';
 import AnomalyDetection from './AnomalyDetection';
 import EnhancedWalletAnalysis from './EnhancedWalletAnalysis';
-import HashAnalysis from './HashAnalysis';
-import BlockAnalysis from './BlockAnalysis';
-import LedgerAnalysis from './LedgerAnalysis';
-import LiveTransactionTracker from './LiveTransactionTracker';
 import StatCard from './StatCard';
 
 interface LatestBlock {
@@ -50,77 +43,32 @@ const Dashboard: React.FC = () => {
   const fetchLatestBlock = async () => {
     console.log('🔄 Starting to fetch latest block...');
     setLoadingBlock(true);
-    
     try {
-      // Try BlockCypher API first (supports CORS)
-      console.log('📡 Trying BlockCypher API...');
-      const blockCypherResponse = await fetch('https://api.blockcypher.com/v1/btc/main');
+      // Try CORS proxy for blockchain.info
+      console.log('📡 Fetching latest block from blockchain.info via CORS proxy...');
+      const response = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://blockchain.info/latestblock'));
+      const data = await response.json();
+      const latestBlockData = JSON.parse(data.contents);
+      console.log('📦 Latest block data via proxy:', latestBlockData);
       
-      if (blockCypherResponse.ok) {
-        const blockData = await blockCypherResponse.json();
-        console.log('📦 BlockCypher block data:', blockData);
-        
-        const blockInfo: LatestBlock = {
-          hash: blockData.hash,
-          height: blockData.height,
-          time: Math.floor(new Date(blockData.time).getTime() / 1000),
-          block_index: blockData.height, // BlockCypher doesn't have block_index, use height
-          txIndexes: Array.from({length: blockData.n_tx || 2000}, (_, i) => i + 1000000) // Mock tx indexes
-        };
-        
-        console.log('📊 Processed BlockCypher block info:', blockInfo);
-        setLatestBlock(blockInfo);
-        console.log('✅ Latest block data updated successfully via BlockCypher!');
-        return;
-      }
+      const blockInfo: LatestBlock = {
+        hash: latestBlockData.hash,
+        height: latestBlockData.height,
+        time: latestBlockData.time,
+        block_index: latestBlockData.block_index,
+        txIndexes: latestBlockData.txIndexes || []
+      };
       
-      console.log('⚠️ BlockCypher failed, trying CORS proxies...');
-      
-      // Fallback to CORS proxies for blockchain.info
-      const corsProxies = [
-        'https://corsproxy.io/?',
-        'https://cors-anywhere.herokuapp.com/',
-        'https://api.codetabs.com/v1/proxy?quest=',
-      ];
-      
-      for (let i = 0; i < corsProxies.length; i++) {
-        try {
-          console.log(`📡 Trying CORS proxy ${i + 1}: ${corsProxies[i]}`);
-          const response = await fetch(corsProxies[i] + 'https://blockchain.info/latestblock');
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          const latestBlockData = await response.json();
-          console.log('📦 Latest block data via proxy:', latestBlockData);
-          
-          const blockInfo: LatestBlock = {
-            hash: latestBlockData.hash,
-            height: latestBlockData.height,
-            time: latestBlockData.time,
-            block_index: latestBlockData.block_index,
-            txIndexes: latestBlockData.txIndexes || []
-          };
-          
-          console.log('📊 Processed block info:', blockInfo);
-          setLatestBlock(blockInfo);
-          console.log('✅ Latest block data updated successfully in Overview!');
-          return; // Success, exit function
-        } catch (proxyErr) {
-          console.log(`⚠️ CORS proxy ${i + 1} failed:`, proxyErr);
-          if (i === corsProxies.length - 1) {
-            throw proxyErr; // Last proxy failed, throw error
-          }
-        }
-      }
+      console.log('📊 Processed block info:', blockInfo);
+      setLatestBlock(blockInfo);
+      console.log('✅ Latest block data updated successfully in Overview!');
     } catch (err) {
-      console.error('❌ All APIs failed, using mock data:', err);
-      // Fallback with mock data that looks realistic
+      console.error('❌ Failed to fetch latest block:', err);
+      // Fallback with mock data
       const mockBlock: LatestBlock = {
         hash: "00000000000000000001af9c9039ecb95a656cc56c0c35028d810fb8b6d729f9",
         height: 914256,
-        time: Math.floor(Date.now() / 1000),
+        time: Date.now() / 1000,
         block_index: 914256,
         txIndexes: Array.from({length: 2420}, (_, i) => i + 1000000)
       };
@@ -164,10 +112,6 @@ const Dashboard: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'electric' },
     { id: 'anomalies', label: 'Anomaly Detection', icon: Shield, color: 'bitcoin' },
     { id: 'wallets', label: 'Wallet Analysis', icon: Activity, color: 'success' },
-    { id: 'hash', label: 'Hash Analysis', icon: Hash, color: 'warning' },
-    { id: 'block', label: 'Block Analysis', icon: Database, color: 'purple' },
-    { id: 'ledger', label: 'Ledger Portfolio', icon: Wallet, color: 'blue' },
-    { id: 'live', label: 'Live Transactions', icon: Zap, color: 'green' },
   ];
 
   const quickActions = [
@@ -488,66 +432,6 @@ const Dashboard: React.FC = () => {
                 <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
               </div>
               <EnhancedWalletAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'hash' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-bitcoin-400 to-electric-400 bg-clip-text text-transparent">
-                    Transaction Hash Analysis
-                  </h2>
-                  <p className="text-dark-400 mt-2">Deep dive into Bitcoin transaction details, inputs, outputs, and technical information</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <HashAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'block' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                    Block Analysis
-                  </h2>
-                  <p className="text-dark-400 mt-2">Comprehensive Bitcoin block analysis with all transactions, addresses, and technical details</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <BlockAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'ledger' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                    Ledger Portfolio Analytics
-                  </h2>
-                  <p className="text-dark-400 mt-2">Real-time cryptocurrency market data and portfolio insights using CoinGecko API</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <LedgerAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'live' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                    Live Bitcoin Transactions
-                  </h2>
-                  <p className="text-dark-400 mt-2">Real-time Bitcoin network activity with transaction details</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-              </div>
-              <LiveTransactionTracker />
             </div>
           )}
         </div>
