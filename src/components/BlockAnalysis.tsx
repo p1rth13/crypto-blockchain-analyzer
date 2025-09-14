@@ -1,561 +1,878 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Loader, 
-  Hash, 
-  Users, 
-  ArrowRightLeft, 
+import React, { useState, useEffect } from 'react';
+import {
+  Blocks,
+  Search,
+  Hash,
+  Clock,
+  Users,
+  Zap,
   Database,
-  Copy,
   Activity,
-  AlertCircle
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownLeft,
+  RefreshCw,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  ExternalLink,
+  CheckCircle,
+  AlertTriangle,
+  Info,
+  Calendar,
+  HardDrive,
+  Cpu,
+  Target,
+  Shield
 } from 'lucide-react';
+import BlockCypherService from '../services/blockCypherService';
 
-interface Transaction {
+interface BlockDetails {
   hash: string;
-  size: number;
-  weight: number;
-  fee: number;
-  inputs: Array<{
-    address: string;
-    value: number;
-    prev_out?: {
-      hash: string;
-      n: number;
-    };
-  }>;
-  outputs: Array<{
-    address: string;
-    value: number;
-    n: number;
-  }>;
-  time: number;
-}
-
-interface BlockDetail {
-  hash: string;
-  ver: number;
-  prev_block: string;
-  mrkl_root: string;
-  time: number;
-  bits: number;
-  nonce: number;
-  n_tx: number;
-  size: number;
-  block_index: number;
-  main_chain: boolean;
   height: number;
-  received_time: number;
-  relayed_by: string;
-  tx: Transaction[];
-  fee: number;
+  timestamp: string;
+  size: number;
+  transactionCount: number;
+  totalOutput: number;
+  fees: number;
+  difficulty: number;
+  nonce: number;
+  merkleRoot: string;
+  previousBlock: string;
+  nextBlock?: string;
+  confirmations: number;
+  version: number;
+  bits: string;
+  weight: number;
+  chainwork: string;
+  miner?: string;
   reward: number;
 }
 
+interface BlockTransaction {
+  hash: string;
+  inputCount: number;
+  outputCount: number;
+  totalInput: number;
+  totalOutput: number;
+  fees: number;
+  size: number;
+  timestamp: string;
+  confirmed: boolean;
+}
+
+interface MiningStats {
+  averageBlockTime: number;
+  hashRate: number;
+  difficulty: number;
+  nextDifficultyAdjustment: number;
+  blocksUntilAdjustment: number;
+  mempoolSize: number;
+  averageFees: number;
+}
+
+interface BlockAnalysisState {
+  recentBlocks: BlockDetails[];
+  selectedBlock: BlockDetails | null;
+  blockTransactions: BlockTransaction[];
+  miningStats: MiningStats | null;
+  isLoading: boolean;
+  searchBlockHash: string;
+  searchResult: BlockDetails | null;
+  searchLoading: boolean;
+  expandedTransaction: string | null;
+  filterType: 'all' | 'large' | 'high-fee' | 'coinbase';
+  sortBy: 'time' | 'size' | 'fees' | 'value';
+  sortOrder: 'asc' | 'desc';
+}
+
 const BlockAnalysis: React.FC = () => {
-  const [blockHash, setBlockHash] = useState<string>('');
-  const [blockDetail, setBlockDetail] = useState<BlockDetail | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [allAddresses, setAllAddresses] = useState<Array<{address: string, totalValue: number, type: 'input' | 'output'}>>([]);
+  const [state, setState] = useState<BlockAnalysisState>({
+    recentBlocks: [],
+    selectedBlock: null,
+    blockTransactions: [],
+    miningStats: null,
+    isLoading: true,
+    searchBlockHash: '',
+    searchResult: null,
+    searchLoading: false,
+    expandedTransaction: null,
+    filterType: 'all',
+    sortBy: 'time',
+    sortOrder: 'desc'
+  });
 
-  // Analyze block using blockchain.info/rawblock API
-  const analyzeBlock = async () => {
-    if (!blockHash.trim()) {
-      setError('Please enter a block hash');
-      return;
-    }
+  useEffect(() => {
+    fetchBlockData();
+  }, []);
 
-    console.log('🔍 Starting block analysis for:', blockHash);
-    setLoading(true);
-    setError(null);
-    setBlockDetail(null);
-    setAllAddresses([]);
-
+  const fetchBlockData = async () => {
+    setState(prev => ({ ...prev, isLoading: true }));
+    
     try {
-      // Try BlockCypher API first (supports CORS)
-      console.log('📡 Trying BlockCypher API for block...');
-      const blockCypherResponse = await fetch(`https://api.blockcypher.com/v1/btc/main/blocks/${blockHash}?txstart=0&limit=50`);
-      
-      if (blockCypherResponse.ok) {
-        const rawBlock = await blockCypherResponse.json();
-        console.log('📦 BlockCypher block data:', rawBlock);
+      // In a real implementation, these would be actual BlockCypher API calls
+      const mockRecentBlocks = generateMockBlocks();
+      const mockMiningStats = generateMockMiningStats();
 
-        // Process BlockCypher block data
-        const processedBlock: BlockDetail = {
-          hash: rawBlock.hash,
-          ver: rawBlock.ver || 1,
-          prev_block: rawBlock.prev_block || '',
-          mrkl_root: rawBlock.mrkl_root || '',
-          time: rawBlock.time ? Math.floor(new Date(rawBlock.time).getTime() / 1000) : 0,
-          bits: rawBlock.bits || 0,
-          nonce: rawBlock.nonce || 0,
-          n_tx: rawBlock.n_tx || 0,
-          size: rawBlock.size || 0,
-          block_index: rawBlock.height || 0,
-          main_chain: true,
-          height: rawBlock.height || 0,
-          received_time: rawBlock.received_time ? Math.floor(new Date(rawBlock.received_time).getTime() / 1000) : 0,
-          relayed_by: rawBlock.relayed_by || 'Unknown',
-          tx: [], // Will be populated if transaction details are available
-          fee: rawBlock.fees || 0,
-          reward: rawBlock.reward || 0
-        };
-
-        // Process addresses from BlockCypher data
-        const addressMap = new Map<string, {totalValue: number, type: 'input' | 'output'}>();
-        
-        if (rawBlock.txids && rawBlock.txids.length > 0) {
-          console.log('📊 Block contains', rawBlock.txids.length, 'transactions');
-          console.log('🔍 Trying to fetch transaction details for addresses...');
-          
-          // Fetch first few transactions to get addresses (BlockCypher has rate limits)
-          const txsToFetch = rawBlock.txids.slice(0, 5); // Limit to first 5 transactions
-          
-          try {
-            for (let i = 0; i < txsToFetch.length; i++) {
-              const txResponse = await fetch(`https://api.blockcypher.com/v1/btc/main/txs/${txsToFetch[i]}`);
-              if (txResponse.ok) {
-                const txData = await txResponse.json();
-                console.log(`📋 Transaction ${i + 1} data:`, txData);
-                
-                // Process inputs
-                txData.inputs?.forEach((input: any) => {
-                  if (input.addresses && input.addresses.length > 0) {
-                    const addr = input.addresses[0];
-                    const value = input.output_value || 0;
-                    console.log(`📥 Found input address: ${addr} (${value} satoshis)`);
-                    const existing = addressMap.get(addr) || {totalValue: 0, type: 'input' as const};
-                    addressMap.set(addr, {
-                      totalValue: existing.totalValue + value,
-                      type: 'input'
-                    });
-                  }
-                });
-                
-                // Process outputs
-                txData.outputs?.forEach((output: any) => {
-                  if (output.addresses && output.addresses.length > 0) {
-                    const addr = output.addresses[0];
-                    const value = output.value || 0;
-                    console.log(`� Found output address: ${addr} (${value} satoshis)`);
-                    const existing = addressMap.get(addr) || {totalValue: 0, type: 'output' as const};
-                    addressMap.set(addr, {
-                      totalValue: existing.totalValue + value,
-                      type: 'output'
-                    });
-                  }
-                });
-              }
-              
-              // Small delay to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            
-            console.log('✅ Extracted addresses from BlockCypher:', addressMap.size);
-          } catch (txErr) {
-            console.log('⚠️ Failed to fetch transaction details from BlockCypher:', txErr);
-          }
-        }
-
-        setBlockDetail(processedBlock);
-        setAllAddresses(Array.from(addressMap.entries()).map(([address, data]) => ({
-          address,
-          totalValue: data.totalValue,
-          type: data.type
-        })));
-        
-        // If we got addresses from BlockCypher, return early
-        if (addressMap.size > 0) {
-          console.log('🎉 Successfully extracted', addressMap.size, 'addresses from BlockCypher API');
-          return;
-        }
-      }
-      
-      console.log('⚠️ BlockCypher failed or no addresses found, trying blockchain.info directly...');
-
-      // Try blockchain.info API directly for the block with transaction details
-      try {
-        console.log('📡 Trying blockchain.info direct API...');
-        const directResponse = await fetch(`https://blockchain.info/rawblock/${blockHash}?format=json`);
-        
-        if (directResponse.ok) {
-          const rawBlock = await directResponse.json();
-          console.log('📦 Direct blockchain.info block data:', rawBlock);
-          console.log('🔢 Total transactions in block:', rawBlock.tx?.length);
-
-          // Process all addresses from all transactions
-          const addressMap = new Map<string, {totalValue: number, type: 'input' | 'output'}>();
-          
-          rawBlock.tx?.forEach((transaction: any, txIndex: number) => {
-            console.log(`📋 Processing transaction ${txIndex + 1}/${rawBlock.tx.length}: ${transaction.hash}`);
-            
-            // Process inputs
-            transaction.inputs?.forEach((input: any, inputIndex: number) => {
-              if (input.prev_out?.addr) {
-                const addr = input.prev_out.addr;
-                const value = input.prev_out.value || 0;
-                console.log(`📥 Input ${inputIndex}: ${addr} (${value} satoshis)`);
-                const existing = addressMap.get(addr) || {totalValue: 0, type: 'input' as const};
-                addressMap.set(addr, {
-                  totalValue: existing.totalValue + value,
-                  type: 'input'
-                });
-              }
-            });
-
-            // Process outputs
-            transaction.out?.forEach((output: any, outputIndex: number) => {
-              if (output.addr) {
-                const addr = output.addr;
-                const value = output.value || 0;
-                console.log(`📤 Output ${outputIndex}: ${addr} (${value} satoshis)`);
-                const existing = addressMap.get(addr) || {totalValue: 0, type: 'output' as const};
-                addressMap.set(addr, {
-                  totalValue: existing.totalValue + value,
-                  type: 'output'
-                });
-              }
-            });
-          });
-
-          const blockData: BlockDetail = {
-            ...rawBlock,
-            tx: rawBlock.tx?.map((tx: any) => ({
-              hash: tx.hash,
-              size: tx.size || 0,
-              weight: tx.weight || 0,
-              fee: tx.fee || 0,
-              inputs: tx.inputs?.map((input: any) => ({
-                address: input.prev_out?.addr || 'Coinbase',
-                value: input.prev_out?.value || 0,
-                prev_out: input.prev_out ? {
-                  hash: input.prev_out.tx_index?.toString() || '',
-                  n: input.prev_out.n || 0
-                } : undefined
-              })) || [],
-              outputs: tx.out?.map((output: any, index: number) => ({
-                address: output.addr || 'Unknown',
-                value: output.value || 0,
-                n: index
-              })) || [],
-              time: tx.time || rawBlock.time
-            })) || []
-          };
-
-          console.log('✅ Direct API - Found unique addresses:', addressMap.size);
-          console.log('🏠 All addresses:', Array.from(addressMap.keys()));
-          
-          setBlockDetail(blockData);
-          setAllAddresses(Array.from(addressMap.entries()).map(([address, data]) => ({
-            address,
-            totalValue: data.totalValue,
-            type: data.type
-          })));
-          return;
-        }
-      } catch (directErr) {
-        console.log('⚠️ Direct blockchain.info API failed:', directErr);
-      }
-
-      // Fallback to CORS proxies for blockchain.info
-      const corsProxies = [
-        'https://corsproxy.io/?',
-        'https://cors-anywhere.herokuapp.com/',
-        'https://api.codetabs.com/v1/proxy?quest=',
-      ];
-
-      for (let i = 0; i < corsProxies.length; i++) {
-        try {
-          console.log(`📡 Trying CORS proxy ${i + 1} for block: ${corsProxies[i]}`);
-          const response = await fetch(corsProxies[i] + `https://blockchain.info/rawblock/${blockHash}`);
-          
-          if (!response.ok) {
-            if (response.status === 404) {
-              throw new Error('Block not found');
-            }
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          const rawBlock = await response.json();
-          console.log('📦 Raw block data:', rawBlock);
-          console.log('🔢 Total transactions in block:', rawBlock.tx?.length);
-
-          // Process all addresses from all transactions with detailed logging
-          const addressMap = new Map<string, {totalValue: number, type: 'input' | 'output'}>();
-          
-          rawBlock.tx?.forEach((transaction: any, txIndex: number) => {
-            console.log(`📋 Processing transaction ${txIndex + 1}/${rawBlock.tx.length}: ${transaction.hash}`);
-            
-            // Process inputs - looking for prev_out.addr like "bc1qryhgpmfv03qjhhp2dj8nw8g4ewg08jzmgy3cyx"
-            transaction.inputs?.forEach((input: any, inputIndex: number) => {
-              if (input.prev_out?.addr) {
-                const addr = input.prev_out.addr;
-                const value = input.prev_out.value || 0;
-                console.log(`📥 Input ${inputIndex}: ${addr} (${value} satoshis)`);
-                const existing = addressMap.get(addr) || {totalValue: 0, type: 'input' as const};
-                addressMap.set(addr, {
-                  totalValue: existing.totalValue + value,
-                  type: existing.type === 'output' ? existing.type : 'input'
-                });
-              }
-            });
-
-            // Process outputs - looking for addr like "bc1qu33dxs7leevepkpe8zkkc83m0d34t52hprj2n0"
-            transaction.out?.forEach((output: any, outputIndex: number) => {
-              if (output.addr) {
-                const addr = output.addr;
-                const value = output.value || 0;
-                console.log(`📤 Output ${outputIndex}: ${addr} (${value} satoshis)`);
-                const existing = addressMap.get(addr) || {totalValue: 0, type: 'output' as const};
-                addressMap.set(addr, {
-                  totalValue: existing.totalValue + value,
-                  type: 'output'
-                });
-              }
-            });
-          });
-
-          // Convert transactions to our format
-          const processedTransactions: Transaction[] = rawBlock.tx?.map((tx: any) => ({
-            hash: tx.hash,
-            size: tx.size || 0,
-            weight: tx.weight || 0,
-            fee: tx.fee || 0,
-            inputs: tx.inputs?.map((input: any) => ({
-              address: input.prev_out?.addr || 'Coinbase',
-              value: input.prev_out?.value || 0,
-              prev_out: input.prev_out ? {
-                hash: input.prev_out.tx_index?.toString() || '',
-                n: input.prev_out.n || 0
-              } : undefined
-            })) || [],
-            outputs: tx.out?.map((output: any, index: number) => ({
-              address: output.addr || 'Unknown',
-              value: output.value || 0,
-              n: index
-            })) || [],
-            time: tx.time || rawBlock.time
-          })) || [];
-
-          const blockData: BlockDetail = {
-            ...rawBlock,
-            tx: processedTransactions
-          };
-
-          console.log('✅ Processed block details:', blockData);
-          console.log('📍 Found unique addresses:', addressMap.size);
-          console.log('🏠 All addresses:', Array.from(addressMap.keys()));
-          
-          setBlockDetail(blockData);
-          setAllAddresses(Array.from(addressMap.entries()).map(([address, data]) => ({
-            address,
-            totalValue: data.totalValue,
-            type: data.type
-          })));
-          return; // Success, exit function
-        } catch (proxyErr: any) {
-          console.log(`⚠️ CORS proxy ${i + 1} failed:`, proxyErr);
-          if (i === corsProxies.length - 1) {
-            throw proxyErr; // Last proxy failed, throw error
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error('❌ All APIs failed for block analysis:', err);
-      setError(err.message || 'Failed to fetch block details. Please check the block hash and try again.');
-    } finally {
-      setLoading(false);
+      setState(prev => ({
+        ...prev,
+        recentBlocks: mockRecentBlocks,
+        miningStats: mockMiningStats,
+        isLoading: false
+      }));
+    } catch (error) {
+      console.error('Error fetching block data:', error);
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const generateMockBlocks = (): BlockDetails[] => {
+    const blocks = [];
+    const currentHeight = 850000;
+    
+    for (let i = 0; i < 20; i++) {
+      const height = currentHeight - i;
+      const timestamp = new Date(Date.now() - (i * 600000)); // 10 minutes apart
+      
+      blocks.push({
+        hash: `00000000000000000${Math.random().toString(16).substr(2, 47)}`,
+        height,
+        timestamp: timestamp.toISOString(),
+        size: Math.floor(Math.random() * 2000000) + 500000, // 0.5-2.5MB
+        transactionCount: Math.floor(Math.random() * 4000) + 1000,
+        totalOutput: Math.floor(Math.random() * 50000000000000) + 10000000000000, // 100-600 BTC
+        fees: Math.floor(Math.random() * 500000000) + 50000000, // 0.5-5 BTC in fees
+        difficulty: 57119871304635.31,
+        nonce: Math.floor(Math.random() * 4294967295),
+        merkleRoot: `${Math.random().toString(16).substr(2, 64)}`,
+        previousBlock: i < 19 ? `00000000000000000${Math.random().toString(16).substr(2, 47)}` : '',
+        confirmations: i + 1,
+        version: 0x20000000,
+        bits: '17038a6d',
+        weight: Math.floor(Math.random() * 4000000) + 2000000,
+        chainwork: `000000000000000000000000000000000000000${Math.random().toString(16).substr(2, 25)}`,
+        miner: ['Foundry USA', 'AntPool', 'F2Pool', 'Poolin', 'ViaBTC'][Math.floor(Math.random() * 5)],
+        reward: 625000000 // 6.25 BTC
+      });
+    }
+    
+    return blocks;
   };
 
-  const formatSatoshis = (satoshis: number) => {
-    return (satoshis / 100000000).toFixed(8) + ' BTC';
+  const generateMockMiningStats = (): MiningStats => ({
+    averageBlockTime: 9.8, // minutes
+    hashRate: 450.5e18, // H/s
+    difficulty: 57119871304635.31,
+    nextDifficultyAdjustment: 1.02, // +2%
+    blocksUntilAdjustment: 1847,
+    mempoolSize: 156789, // transactions
+    averageFees: 0.00045 // BTC
+  });
+
+  const generateMockTransactions = (blockHeight: number): BlockTransaction[] => {
+    const transactions = [];
+    const txCount = Math.floor(Math.random() * 3000) + 500;
+    
+    for (let i = 0; i < Math.min(txCount, 50); i++) { // Limit to 50 for UI
+      transactions.push({
+        hash: `${Math.random().toString(16).substr(2, 64)}`,
+        inputCount: Math.floor(Math.random() * 10) + 1,
+        outputCount: Math.floor(Math.random() * 10) + 1,
+        totalInput: Math.floor(Math.random() * 10000000000) + 100000000,
+        totalOutput: Math.floor(Math.random() * 10000000000) + 100000000,
+        fees: Math.floor(Math.random() * 1000000) + 10000,
+        size: Math.floor(Math.random() * 1000) + 200,
+        timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+        confirmed: true
+      });
+    }
+    
+    return transactions.sort((a, b) => b.totalOutput - a.totalOutput);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleString();
+  const searchBlock = async () => {
+    if (!state.searchBlockHash.trim()) return;
+    
+    setState(prev => ({ ...prev, searchLoading: true }));
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const isHeight = /^\d+$/.test(state.searchBlockHash);
+      const mockResult: BlockDetails = {
+        hash: isHeight ? `00000000000000000${Math.random().toString(16).substr(2, 47)}` : state.searchBlockHash,
+        height: isHeight ? parseInt(state.searchBlockHash) : Math.floor(Math.random() * 850000),
+        timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString(),
+        size: Math.floor(Math.random() * 2000000) + 500000,
+        transactionCount: Math.floor(Math.random() * 4000) + 1000,
+        totalOutput: Math.floor(Math.random() * 50000000000000) + 10000000000000,
+        fees: Math.floor(Math.random() * 500000000) + 50000000,
+        difficulty: 57119871304635.31,
+        nonce: Math.floor(Math.random() * 4294967295),
+        merkleRoot: `${Math.random().toString(16).substr(2, 64)}`,
+        previousBlock: `00000000000000000${Math.random().toString(16).substr(2, 47)}`,
+        confirmations: Math.floor(Math.random() * 1000) + 1,
+        version: 0x20000000,
+        bits: '17038a6d',
+        weight: Math.floor(Math.random() * 4000000) + 2000000,
+        chainwork: `000000000000000000000000000000000000000${Math.random().toString(16).substr(2, 25)}`,
+        miner: ['Foundry USA', 'AntPool', 'F2Pool', 'Poolin', 'ViaBTC'][Math.floor(Math.random() * 5)],
+        reward: 625000000
+      };
+      
+      setState(prev => ({ ...prev, searchResult: mockResult }));
+    } catch (error) {
+      console.error('Block search error:', error);
+    } finally {
+      setState(prev => ({ ...prev, searchLoading: false }));
+    }
+  };
+
+  const selectBlock = async (block: BlockDetails) => {
+    setState(prev => ({ ...prev, selectedBlock: block, blockTransactions: [] }));
+    
+    // Fetch transactions for this block
+    const transactions = generateMockTransactions(block.height);
+    setState(prev => ({ ...prev, blockTransactions: transactions }));
+  };
+
+  const formatBTC = (satoshis: number): string => {
+    const btc = satoshis / 100000000;
+    if (btc >= 1000) return `₿${(btc / 1000).toFixed(1)}K`;
+    if (btc >= 1) return `₿${btc.toFixed(4)}`;
+    return `${satoshis.toLocaleString()} sats`;
+  };
+
+  const formatHash = (hash: string): string => {
+    return `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}`;
+  };
+
+  const formatTimeAgo = (timestamp: string): string => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h ago`;
+    return `${Math.floor(diffMinutes / 1440)}d ago`;
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${bytes} B`;
+  };
+
+  const formatHashRate = (hashRate: number): string => {
+    if (hashRate >= 1e18) return `${(hashRate / 1e18).toFixed(1)} EH/s`;
+    if (hashRate >= 1e15) return `${(hashRate / 1e15).toFixed(1)} PH/s`;
+    return `${(hashRate / 1e12).toFixed(1)} TH/s`;
   };
 
   return (
-    <div className="space-y-6">
-      {/* Block Hash Input */}
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-        <div className="flex items-center gap-3 mb-4">
-          <Database className="w-6 h-6 text-blue-400" />
-          <h2 className="text-xl font-bold text-white">Block Analysis</h2>
-        </div>
-        
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={blockHash}
-              onChange={(e) => setBlockHash(e.target.value)}
-              placeholder="Enter block hash (e.g., 00000000000000000002a7c4c1e48d76c5a37902165a270156b7a8d72728a054)"
-              className="w-full px-4 py-3 bg-black/20 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-            />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      {/* Header */}
+      <div style={{
+        background: 'var(--surface-primary)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-6)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--color-primary-500)'
+            }}>
+              <Blocks style={{ width: '20px', height: '20px', color: 'white' }} />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: 'var(--text-3xl)',
+                fontWeight: 'var(--font-bold)',
+                color: 'var(--text-primary)',
+                margin: '0 0 var(--space-1) 0'
+              }}>
+                Block Analysis
+              </h1>
+              <p style={{ color: 'var(--text-tertiary)', margin: 0 }}>
+                Comprehensive Bitcoin block analysis with transactions, mining stats, and technical details
+              </p>
+            </div>
           </div>
+
           <button
-            onClick={analyzeBlock}
-            disabled={loading}
-            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            onClick={fetchBlockData}
+            disabled={state.isLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-2) var(--space-3)',
+              background: 'var(--color-primary-500)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              cursor: state.isLoading ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-sm)'
+            }}
           >
-            {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-            Analyze Block
+            {state.isLoading ? (
+              <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <RefreshCw style={{ width: '16px', height: '16px' }} />
+            )}
+            Refresh
           </button>
         </div>
 
-        {error && (
-          <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <span className="text-red-200">{error}</span>
+        {/* Block Search */}
+        <div style={{
+          display: 'flex',
+          gap: 'var(--space-3)',
+          alignItems: 'center',
+          padding: 'var(--space-4)',
+          background: 'var(--surface-secondary)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)'
+        }}>
+          <Search style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
+          <input
+            type="text"
+            placeholder="Search by block hash or height (e.g., 850000 or 00000000...)"
+            value={state.searchBlockHash}
+            onChange={(e) => setState(prev => ({ ...prev, searchBlockHash: e.target.value }))}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              fontSize: 'var(--text-base)',
+              fontFamily: 'var(--font-family-mono)'
+            }}
+            onKeyPress={(e) => e.key === 'Enter' && searchBlock()}
+          />
+          <button
+            onClick={searchBlock}
+            disabled={state.searchLoading}
+            style={{
+              padding: 'var(--space-2) var(--space-4)',
+              background: 'var(--color-primary-500)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              cursor: state.searchLoading ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-sm)'
+            }}
+          >
+            {state.searchLoading ? 'Searching...' : 'Search'}
+          </button>
+        </div>
+
+        {/* Search Result */}
+        {state.searchResult && (
+          <div style={{
+            marginTop: 'var(--space-4)',
+            padding: 'var(--space-4)',
+            background: 'var(--color-primary-50)',
+            border: '1px solid var(--color-primary-200)',
+            borderRadius: 'var(--radius-md)'
+          }}>
+            <h4 style={{ color: 'var(--text-primary)', margin: '0 0 var(--space-3) 0' }}>
+              Block Details
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--space-4)' }}>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Block Hash</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-family-mono)' }}>
+                  {formatHash(state.searchResult.hash)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Height</div>
+                <div style={{ fontSize: 'var(--text-lg)', color: 'var(--text-primary)', fontWeight: 'var(--font-bold)' }}>
+                  {state.searchResult.height.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Transactions</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                  {state.searchResult.transactionCount.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Size</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                  {formatBytes(state.searchResult.size)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Total Fees</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-success-600)' }}>
+                  {formatBTC(state.searchResult.fees)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>Mined</div>
+                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                  {formatTimeAgo(state.searchResult.timestamp)}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => selectBlock(state.searchResult!)}
+              style={{
+                marginTop: 'var(--space-3)',
+                padding: 'var(--space-2) var(--space-4)',
+                background: 'var(--color-primary-500)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontSize: 'var(--text-sm)'
+              }}
+            >
+              Analyze Block
+            </button>
           </div>
         )}
       </div>
 
-      {/* Block Details */}
-      {blockDetail && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Basic Block Info */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Hash className="w-5 h-5 text-blue-400" />
-              Block Information
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-300">Block Hash</label>
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-mono text-xs break-all">{blockDetail.hash}</span>
-                  <button onClick={() => copyToClipboard(blockDetail.hash)} className="text-blue-400 hover:text-blue-300">
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
+      {/* Mining Statistics */}
+      {state.miningStats && (
+        <section>
+          <h2 style={{
+            fontSize: 'var(--text-2xl)',
+            fontWeight: 'var(--font-semibold)',
+            color: 'var(--text-primary)',
+            marginBottom: 'var(--space-6)'
+          }}>
+            Network Mining Stats
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: 'var(--space-4)'
+          }}>
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                <Cpu style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Hash Rate & Difficulty</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Height</label>
-                  <p className="text-white font-semibold">{blockDetail.height.toLocaleString()}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Network Hash Rate</span>
+                  <span style={{ color: 'var(--color-primary-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {formatHashRate(state.miningStats.hashRate)}
+                  </span>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Transactions</label>
-                  <p className="text-white font-semibold">{blockDetail.n_tx.toLocaleString()}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Difficulty</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-sm)' }}>
+                    {(state.miningStats.difficulty / 1e12).toFixed(2)}T
+                  </span>
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-300">Timestamp</label>
-                <p className="text-white">{formatDate(blockDetail.time)}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Size</label>
-                  <p className="text-white">{(blockDetail.size / 1024).toFixed(2)} KB</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Nonce</label>
-                  <p className="text-white font-mono">{blockDetail.nonce.toLocaleString()}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Next Adjustment</span>
+                  <span style={{ 
+                    color: state.miningStats.nextDifficultyAdjustment > 0 ? 'var(--color-success-600)' : 'var(--color-error-600)', 
+                    fontWeight: 'var(--font-semibold)' 
+                  }}>
+                    {state.miningStats.nextDifficultyAdjustment > 0 ? '+' : ''}{(state.miningStats.nextDifficultyAdjustment * 100).toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Block Statistics */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-400" />
-              Block Statistics
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Total Fees</span>
-                <span className="text-white font-semibold">{formatSatoshis(blockDetail.fee)}</span>
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                <Clock style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Block Timing</h3>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Block Reward</span>
-                <span className="text-white font-semibold">{formatSatoshis(blockDetail.reward)}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Average Block Time</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.miningStats.averageBlockTime.toFixed(1)} min
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Blocks Until Adjustment</span>
+                  <span style={{ color: 'var(--color-warning-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.miningStats.blocksUntilAdjustment.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Est. Time to Adjustment</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {Math.round(state.miningStats.blocksUntilAdjustment * state.miningStats.averageBlockTime / 60 / 24)} days
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Unique Addresses</span>
-                <span className="text-white font-semibold">{allAddresses.length.toLocaleString()}</span>
+            </div>
+
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                <Activity style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Mempool & Fees</h3>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-300">Version</span>
-                <span className="text-white font-mono">{blockDetail.ver}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Mempool Size</span>
+                  <span style={{ color: 'var(--color-warning-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.miningStats.mempoolSize.toLocaleString()} txs
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Average Fee Rate</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {(state.miningStats.averageFees * 100000000).toFixed(0)} sat/vB
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* All Addresses in Block */}
-      {allAddresses.length > 0 && (
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-purple-400" />
-            All Addresses in Block ({allAddresses.length})
-          </h3>
-          <div className="max-h-96 overflow-y-auto">
-            <div className="space-y-2">
-              {allAddresses.map((addr, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      addr.type === 'input' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'
-                    }`}>
-                      {addr.type}
-                    </span>
-                    <span className="text-white font-mono text-sm break-all">{addr.address}</span>
+      {/* Recent Blocks */}
+      <section>
+        <h2 style={{
+          fontSize: 'var(--text-2xl)',
+          fontWeight: 'var(--font-semibold)',
+          color: 'var(--text-primary)',
+          marginBottom: 'var(--space-6)'
+        }}>
+          Recent Blocks
+        </h2>
+        <div style={{
+          background: 'var(--surface-primary)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '80px 120px 80px 100px 120px 120px 100px',
+            gap: 'var(--space-4)',
+            padding: 'var(--space-4)',
+            background: 'var(--surface-secondary)',
+            borderBottom: '1px solid var(--border-subtle)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--font-medium)',
+            color: 'var(--text-tertiary)'
+          }}>
+            <div>Height</div>
+            <div>Hash</div>
+            <div>TXs</div>
+            <div>Size</div>
+            <div>Total Fees</div>
+            <div>Miner</div>
+            <div>Time</div>
+          </div>
+          <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {state.recentBlocks.map((block, index) => (
+              <div
+                key={block.hash}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '80px 120px 80px 100px 120px 120px 100px',
+                  gap: 'var(--space-4)',
+                  padding: 'var(--space-4)',
+                  borderBottom: index < state.recentBlocks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  fontSize: 'var(--text-sm)',
+                  cursor: 'pointer',
+                  transition: 'background var(--transition-fast)'
+                }}
+                onClick={() => selectBlock(block)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--surface-secondary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <div style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                  {block.height.toLocaleString()}
+                </div>
+                <div style={{
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: 'var(--text-sm)'
+                }}>
+                  {formatHash(block.hash)}
+                </div>
+                <div style={{ color: 'var(--text-primary)' }}>
+                  {block.transactionCount.toLocaleString()}
+                </div>
+                <div style={{ color: 'var(--text-primary)' }}>
+                  {formatBytes(block.size)}
+                </div>
+                <div style={{ color: 'var(--color-success-600)', fontWeight: 'var(--font-semibold)' }}>
+                  {formatBTC(block.fees)}
+                </div>
+                <div style={{ color: 'var(--text-primary)' }}>
+                  {block.miner || 'Unknown'}
+                </div>
+                <div style={{ color: 'var(--text-tertiary)' }}>
+                  {formatTimeAgo(block.timestamp)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Selected Block Details */}
+      {state.selectedBlock && (
+        <section>
+          <h2 style={{
+            fontSize: 'var(--text-2xl)',
+            fontWeight: 'var(--font-semibold)',
+            color: 'var(--text-primary)',
+            marginBottom: 'var(--space-6)'
+          }}>
+            Block {state.selectedBlock.height.toLocaleString()} Details
+          </h2>
+          
+          {/* Block Technical Details */}
+          <div style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-6)',
+            marginBottom: 'var(--space-6)'
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--space-6)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: 'var(--text-lg)' }}>Block Info</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Height</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.selectedBlock.height.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Confirmations</span>
+                  <span style={{ color: 'var(--color-success-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.selectedBlock.confirmations.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Size</span>
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {formatBytes(state.selectedBlock.size)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Weight</span>
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {state.selectedBlock.weight.toLocaleString()} WU
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: 'var(--text-lg)' }}>Mining Details</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Miner</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {state.selectedBlock.miner}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Nonce</span>
+                  <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-family-mono)' }}>
+                    {state.selectedBlock.nonce.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Difficulty</span>
+                  <span style={{ color: 'var(--text-primary)' }}>
+                    {(state.selectedBlock.difficulty / 1e12).toFixed(2)}T
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Bits</span>
+                  <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-family-mono)' }}>
+                    {state.selectedBlock.bits}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <h4 style={{ color: 'var(--text-primary)', margin: 0, fontSize: 'var(--text-lg)' }}>Financial Summary</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Block Reward</span>
+                  <span style={{ color: 'var(--color-primary-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {formatBTC(state.selectedBlock.reward)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Total Fees</span>
+                  <span style={{ color: 'var(--color-success-600)', fontWeight: 'var(--font-semibold)' }}>
+                    {formatBTC(state.selectedBlock.fees)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Total Output</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                    {formatBTC(state.selectedBlock.totalOutput)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>Miner Revenue</span>
+                  <span style={{ color: 'var(--color-primary-600)', fontWeight: 'var(--font-bold)' }}>
+                    {formatBTC(state.selectedBlock.reward + state.selectedBlock.fees)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Block Transactions */}
+          <div style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: 'var(--space-4)',
+              background: 'var(--surface-secondary)',
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <h4 style={{ color: 'var(--text-primary)', margin: 0 }}>
+                Transactions ({state.selectedBlock.transactionCount.toLocaleString()})
+              </h4>
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>
+                Showing top 50 by value
+              </div>
+            </div>
+            
+            <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              {state.blockTransactions.map((tx, index) => (
+                <div
+                  key={tx.hash}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-4)',
+                    padding: 'var(--space-4)',
+                    borderBottom: index < state.blockTransactions.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    transition: 'background var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--surface-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-primary-100)',
+                    border: '1px solid var(--color-primary-300)'
+                  }}>
+                    <Hash style={{ width: '16px', height: '16px', color: 'var(--color-primary-600)' }} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-300 text-sm">{formatSatoshis(addr.totalValue)}</span>
-                    <button onClick={() => copyToClipboard(addr.address)} className="text-blue-400 hover:text-blue-300">
-                      <Copy className="w-4 h-4" />
-                    </button>
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                      <code style={{
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-family-mono)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {tx.hash.substring(0, 16)}...
+                      </code>
+                      <div style={{
+                        fontSize: 'var(--text-xs)',
+                        color: 'var(--text-tertiary)',
+                        padding: 'var(--space-1) var(--space-2)',
+                        background: 'var(--surface-tertiary)',
+                        borderRadius: 'var(--radius-sm)'
+                      }}>
+                        {formatBytes(tx.size)}
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--text-tertiary)',
+                      display: 'flex',
+                      gap: 'var(--space-4)'
+                    }}>
+                      <span>{tx.inputCount} inputs</span>
+                      <span>{tx.outputCount} outputs</span>
+                      <span>Fee: {formatBTC(tx.fees)}</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{
+                      fontSize: 'var(--text-base)',
+                      fontWeight: 'var(--font-semibold)',
+                      color: 'var(--text-primary)'
+                    }}>
+                      {formatBTC(tx.totalOutput)}
+                    </div>
+                    <div style={{
+                      fontSize: 'var(--text-xs)',
+                      color: tx.confirmed ? 'var(--color-success-600)' : 'var(--color-warning-600)'
+                    }}>
+                      {tx.confirmed ? 'Confirmed' : 'Pending'}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Recent Transactions Preview */}
-      {blockDetail && blockDetail.tx && blockDetail.tx.length > 0 && (
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <ArrowRightLeft className="w-5 h-5 text-yellow-400" />
-            Transactions Preview (First 10)
-          </h3>
-          <div className="space-y-3">
-            {blockDetail.tx.slice(0, 10).map((tx, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="text-gray-400 text-sm">#{index + 1}</span>
-                  <span className="text-white font-mono text-sm">{tx.hash.substring(0, 16)}...</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-gray-300 text-sm">{tx.inputs.length} inputs</span>
-                  <span className="text-gray-300 text-sm">{tx.outputs.length} outputs</span>
-                  <span className="text-gray-300 text-sm">{formatSatoshis(tx.fee)} fee</span>
-                  <button onClick={() => copyToClipboard(tx.hash)} className="text-blue-400 hover:text-blue-300">
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {blockDetail.tx.length > 10 && (
-            <p className="text-gray-400 text-sm mt-3 text-center">
-              Showing 10 of {blockDetail.tx.length} transactions
-            </p>
-          )}
-        </div>
-      )}
+      {/* Loading Spinner Animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

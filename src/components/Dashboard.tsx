@@ -5,26 +5,32 @@ import {
   AlertTriangle, 
   Bitcoin, 
   Activity,
-  Zap,
   TrendingUp,
   Eye,
-  Settings,
-  Bell,
-  ExternalLink,
-  Copy,
-  Loader,
   Hash,
   Database,
-  Wallet
+  Wallet,
+  Search,
+  Bell,
+  Settings,
+  Download,
+  Copy,
+  Loader,
+  RefreshCw,
+  Brain
 } from 'lucide-react';
-import TransactionChart from './TransactionChart';
-import AnomalyDetection from './AnomalyDetection';
-import EnhancedWalletAnalysis from './EnhancedWalletAnalysis';
-import HashAnalysis from './HashAnalysis';
-import BlockAnalysis from './BlockAnalysis';
+import BlockCypherService from '../services/blockCypherService';
+import type { 
+  DashboardMetrics, 
+  BlockCypherBlock, 
+  BlockCypherTransaction 
+} from '../services/blockCypherService';
+import LiveTransactionFeed from './LiveTransactionFeed';
 import LedgerAnalysis from './LedgerAnalysis';
-import LiveTransactionTracker from './LiveTransactionTracker';
-import StatCard from './StatCard';
+import BlockAnalysis from './BlockAnalysis';
+import HashAnalysis from './HashAnalysis';
+import WalletAnalysis from './WalletAnalysis';
+import AnomalyDetection from './AnomalyDetection';
 
 interface LatestBlock {
   hash: string;
@@ -37,519 +43,939 @@ interface LatestBlock {
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoaded, setIsLoaded] = useState(false);
-  const [latestBlock, setLatestBlock] = useState<LatestBlock | null>(null);
+  const [latestBlock, setLatestBlock] = useState<BlockCypherBlock | null>(null);
   const [loadingBlock, setLoadingBlock] = useState(false);
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [loadingSearch, setLoadingSearch] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
+    fetchDashboardData();
   }, []);
 
-  // Fetch latest Bitcoin block information for Overview tab
-  const fetchLatestBlock = async () => {
-    console.log('🔄 Starting to fetch latest block...');
-    setLoadingBlock(true);
-    
+  const fetchDashboardData = async () => {
+    setLoadingMetrics(true);
     try {
-      // Try BlockCypher API first (supports CORS)
-      console.log('📡 Trying BlockCypher API...');
-      const blockCypherResponse = await fetch('https://api.blockcypher.com/v1/btc/main');
-      
-      if (blockCypherResponse.ok) {
-        const blockData = await blockCypherResponse.json();
-        console.log('📦 BlockCypher block data:', blockData);
-        
-        const blockInfo: LatestBlock = {
-          hash: blockData.hash,
-          height: blockData.height,
-          time: Math.floor(new Date(blockData.time).getTime() / 1000),
-          block_index: blockData.height, // BlockCypher doesn't have block_index, use height
-          txIndexes: Array.from({length: blockData.n_tx || 2000}, (_, i) => i + 1000000) // Mock tx indexes
-        };
-        
-        console.log('📊 Processed BlockCypher block info:', blockInfo);
-        setLatestBlock(blockInfo);
-        console.log('✅ Latest block data updated successfully via BlockCypher!');
-        return;
-      }
-      
-      console.log('⚠️ BlockCypher failed, trying CORS proxies...');
-      
-      // Fallback to CORS proxies for blockchain.info
-      const corsProxies = [
-        'https://corsproxy.io/?',
-        'https://cors-anywhere.herokuapp.com/',
-        'https://api.codetabs.com/v1/proxy?quest=',
-      ];
-      
-      for (let i = 0; i < corsProxies.length; i++) {
-        try {
-          console.log(`📡 Trying CORS proxy ${i + 1}: ${corsProxies[i]}`);
-          const response = await fetch(corsProxies[i] + 'https://blockchain.info/latestblock');
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          const latestBlockData = await response.json();
-          console.log('📦 Latest block data via proxy:', latestBlockData);
-          
-          const blockInfo: LatestBlock = {
-            hash: latestBlockData.hash,
-            height: latestBlockData.height,
-            time: latestBlockData.time,
-            block_index: latestBlockData.block_index,
-            txIndexes: latestBlockData.txIndexes || []
-          };
-          
-          console.log('📊 Processed block info:', blockInfo);
-          setLatestBlock(blockInfo);
-          console.log('✅ Latest block data updated successfully in Overview!');
-          return; // Success, exit function
-        } catch (proxyErr) {
-          console.log(`⚠️ CORS proxy ${i + 1} failed:`, proxyErr);
-          if (i === corsProxies.length - 1) {
-            throw proxyErr; // Last proxy failed, throw error
-          }
-        }
-      }
-    } catch (err) {
-      console.error('❌ All APIs failed, using mock data:', err);
-      // Fallback with mock data that looks realistic
-      const mockBlock: LatestBlock = {
-        hash: "00000000000000000001af9c9039ecb95a656cc56c0c35028d810fb8b6d729f9",
-        height: 914256,
-        time: Math.floor(Date.now() / 1000),
-        block_index: 914256,
-        txIndexes: Array.from({length: 2420}, (_, i) => i + 1000000)
-      };
-      setLatestBlock(mockBlock);
-      console.log('📊 Using mock block data:', mockBlock);
+      const metrics = await BlockCypherService.getDashboardMetrics();
+      setDashboardMetrics(metrics);
+      setLatestBlock(metrics.latestBlock);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
     } finally {
-      setLoadingBlock(false);
-      console.log('🏁 Finished fetching latest block');
+      setLoadingMetrics(false);
     }
   };
 
-  // Auto-fetch latest block on component mount
-  useEffect(() => {
-    console.log('🚀 Dashboard component mounted! Auto-fetching latest block for Overview...');
-    fetchLatestBlock();
-  }, []);
-
-  // Debug render state
-  console.log('🔍 Dashboard render - Current state:', {
-    activeTab,
-    latestBlock: latestBlock ? 'loaded' : 'not loaded',
-    loadingBlock,
-    isLoaded
-  });
-
-  // Copy to clipboard function
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    console.log('📋 Copied to clipboard:', text);
+  const fetchLatestBlock = async () => {
+    setLoadingBlock(true);
+    try {
+      const block = await BlockCypherService.getLatestBlock();
+      setLatestBlock(block);
+    } catch (error) {
+      console.error('Error fetching latest block:', error);
+    } finally {
+      setLoadingBlock(false);
+    }
   };
 
-  // Mock data for demonstration
-  const stats = {
-    totalTransactions: 2156420,
-    suspiciousTransactions: 3247,
-    activeWallets: 18930,
-    anomaliesDetected: 47
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) return;
+    
+    setLoadingSearch(true);
+    try {
+      const results = await BlockCypherService.search(query.trim());
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults({ error: 'Search failed. Please check your query format.' });
+    } finally {
+      setLoadingSearch(false);
+    }
+  };
+
+  const formatBTC = (satoshis: number): string => {
+    return (satoshis / 100000000).toFixed(8);
+  };
+
+  const formatUSD = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3, color: 'electric' },
-    { id: 'anomalies', label: 'Anomaly Detection', icon: Shield, color: 'bitcoin' },
-    { id: 'wallets', label: 'Wallet Analysis', icon: Activity, color: 'success' },
-    { id: 'hash', label: 'Hash Analysis', icon: Hash, color: 'warning' },
-    { id: 'block', label: 'Block Analysis', icon: Database, color: 'purple' },
-    { id: 'ledger', label: 'Ledger Portfolio', icon: Wallet, color: 'blue' },
-    { id: 'live', label: 'Live Transactions', icon: Zap, color: 'green' },
+    { id: 'overview', name: 'Overview', icon: Activity },
+    { id: 'transactions', name: 'Transactions', icon: BarChart3 },
+    { id: 'anomaly', name: 'Anomaly Detection', icon: Brain },
+    { id: 'wallet', name: 'Wallet Analysis', icon: Wallet },
+    { id: 'hash', name: 'Hash Analysis', icon: Hash },
+    { id: 'blocks', name: 'Block Analysis', icon: Database },
+    { id: 'ledger', name: 'Ledger Analysis', icon: Bitcoin },
+    { id: 'live', name: 'Live Tracking', icon: Eye }
   ];
 
-  const quickActions = [
-    { id: 'scan', label: 'Quick Scan', icon: Zap, color: 'electric' },
-    { id: 'alerts', label: 'Alerts', icon: Bell, color: 'warning' },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'gray' },
-  ];
-
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center">
-        <div className="glass-card p-8 flex flex-col items-center">
-          <Loader className="w-12 h-12 animate-spin text-electric-400 mb-4" />
-          <div className="text-xl font-medium text-dark-100">Loading Dashboard...</div>
-          <div className="text-sm text-dark-400 mt-2">Initializing crypto analysis tools</div>
+  const MetricCard = ({ title, value, change, icon: Icon }: any) => (
+    <div 
+      style={{
+        background: 'var(--surface-primary)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-6)',
+        transition: 'all var(--transition-fast)'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border-default)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+        <h3 style={{ 
+          fontSize: 'var(--text-sm)', 
+          fontWeight: 'var(--font-medium)', 
+          color: 'var(--text-tertiary)', 
+          margin: 0 
+        }}>
+          {title}
+        </h3>
+        <Icon style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
+      </div>
+      
+      <div style={{ 
+        fontSize: 'var(--text-3xl)', 
+        fontWeight: 'var(--font-bold)', 
+        color: 'var(--text-primary)', 
+        margin: '0 0 var(--space-2) 0',
+        lineHeight: 'var(--leading-tight)'
+      }}>
+        {value}
+      </div>
+      
+      {change && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-1)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: 'var(--font-medium)',
+          color: change.startsWith('+') ? 'var(--color-success-500)' : change.startsWith('-') ? 'var(--color-error-500)' : 'var(--text-tertiary)'
+        }}>
+          {change.startsWith('+') ? <TrendingUp style={{ width: '16px', height: '16px' }} /> : 
+           change.startsWith('-') ? <TrendingUp style={{ width: '16px', height: '16px', transform: 'rotate(180deg)' }} /> : null}
+          <span>{change}</span>
         </div>
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 relative">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-electric-500/5 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-bitcoin-500/5 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+  const renderOverview = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      {/* Welcome Header */}
+      <div style={{
+        background: 'var(--surface-primary)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-6)'
+      }}>
+        <h1 style={{ 
+          fontSize: 'var(--text-4xl)', 
+          fontWeight: 'var(--font-bold)', 
+          color: 'var(--text-primary)', 
+          margin: '0 0 var(--space-2) 0' 
+        }}>
+          Crypto Analysis Dashboard
+        </h1>
+        <p style={{ 
+          color: 'var(--text-tertiary)', 
+          margin: 0 
+        }}>
+          Monitor blockchain activity, detect anomalies, and analyze cryptocurrency trends in real-time.
+        </p>
       </div>
 
-      {/* Header */}
-      <header className="relative z-20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <div className="glass-card p-6 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              {/* Logo and Title */}
-              <div className="flex items-center space-x-4 group">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-electric-500 to-bitcoin-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-br from-electric-500 to-bitcoin-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur"></div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-electric-400 to-bitcoin-400 bg-clip-text text-transparent">
-                    CryptoGuard Analytics
-                  </h1>
-                  <p className="text-sm text-dark-400">Advanced Blockchain Analysis & Security</p>
-                </div>
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-electric-500/20 to-bitcoin-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur"></div>
+      {/* Search Results */}
+      {searchResults && (
+        <section>
+          <div style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-6)',
+            marginBottom: 'var(--space-6)'
+          }}>
+            <h3 style={{ 
+              fontSize: 'var(--text-lg)', 
+              fontWeight: 'var(--font-semibold)', 
+              color: 'var(--text-primary)', 
+              margin: '0 0 var(--space-4) 0' 
+            }}>
+              Search Results
+            </h3>
+            {searchResults.error ? (
+              <p style={{ color: 'var(--color-error-500)' }}>{searchResults.error}</p>
+            ) : (
+              <div style={{
+                background: 'var(--surface-secondary)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)',
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: 'var(--text-sm)',
+                overflow: 'auto'
+              }}>
+                <pre>{JSON.stringify(searchResults, null, 2)}</pre>
               </div>
-              
-              {/* Quick Actions */}
-              <div className="flex items-center space-x-3">
-                {quickActions.map((action) => (
+            )}
+            <button
+              onClick={() => setSearchResults(null)}
+              style={{
+                marginTop: 'var(--space-4)',
+                padding: 'var(--space-2) var(--space-4)',
+                background: 'var(--surface-interactive)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}
+            >
+              Clear Results
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Key Metrics */}
+      <section>
+        <h2 style={{ 
+          fontSize: 'var(--text-2xl)', 
+          fontWeight: 'var(--font-semibold)', 
+          color: 'var(--text-primary)', 
+          marginBottom: 'var(--space-6)' 
+        }}>
+          Key Metrics
+        </h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 'var(--space-6)'
+        }}>
+          <MetricCard
+            title="Total Volume (24h)"
+            value={dashboardMetrics ? formatUSD(dashboardMetrics.totalVolume.usd) : loadingMetrics ? "Loading..." : "$2.4B"}
+            change={dashboardMetrics ? `${dashboardMetrics.totalVolume.change24h > 0 ? '+' : ''}${dashboardMetrics.totalVolume.change24h.toFixed(1)}%` : "+12.5%"}
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Active Wallets"
+            value={dashboardMetrics ? dashboardMetrics.activeWallets.count.toLocaleString() : loadingMetrics ? "Loading..." : "847K"}
+            change={dashboardMetrics ? `${dashboardMetrics.activeWallets.change24h > 0 ? '+' : ''}${dashboardMetrics.activeWallets.change24h.toFixed(1)}%` : "-3.2%"}
+            icon={Wallet}
+          />
+          <MetricCard
+            title="Anomalies Detected"
+            value={dashboardMetrics ? dashboardMetrics.anomaliesDetected.count.toString() : loadingMetrics ? "Loading..." : "23"}
+            change={dashboardMetrics ? `${dashboardMetrics.anomaliesDetected.change24h > 0 ? '+' : ''}${dashboardMetrics.anomaliesDetected.change24h.toFixed(1)}%` : "+8.7%"}
+            icon={AlertTriangle}
+          />
+          <MetricCard
+            title="Network Health"
+            value={dashboardMetrics ? `${dashboardMetrics.networkHealth.percentage.toFixed(1)}%` : loadingMetrics ? "Loading..." : "98.2%"}
+            change={dashboardMetrics ? dashboardMetrics.networkHealth.status : "Excellent"}
+            icon={Shield}
+          />
+        </div>
+      </section>
+
+      {/* Latest Block Information */}
+      <section>
+        <div style={{
+          background: 'var(--surface-primary)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-6)'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            marginBottom: 'var(--space-4)' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--color-primary-500)',
+                color: 'var(--color-neutral-50)'
+              }}>
+                <Bitcoin style={{ width: '20px', height: '20px' }} />
+              </div>
+              <div>
+                <h3 style={{ 
+                  fontSize: 'var(--text-lg)', 
+                  fontWeight: 'var(--font-semibold)', 
+                  color: 'var(--text-primary)', 
+                  margin: '0 0 var(--space-1) 0' 
+                }}>
+                  Latest Bitcoin Block
+                </h3>
+                <p style={{ 
+                  fontSize: 'var(--text-sm)', 
+                  color: 'var(--text-tertiary)', 
+                  margin: 0 
+                }}>
+                  Real-time blockchain data
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={fetchLatestBlock}
+              disabled={loadingBlock}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                cursor: loadingBlock ? 'not-allowed' : 'pointer',
+                fontSize: 'var(--text-sm)',
+                fontWeight: 'var(--font-medium)',
+                transition: 'all var(--transition-fast)',
+                minHeight: '44px'
+              }}
+              onMouseEnter={(e) => {
+                if (!loadingBlock) {
+                  e.currentTarget.style.background = 'var(--surface-interactive)';
+                  e.currentTarget.style.borderColor = 'var(--text-secondary)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.borderColor = 'var(--border-default)';
+              }}
+            >
+              {loadingBlock ? (
+                <Loader style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <RefreshCw style={{ width: '16px', height: '16px' }} />
+              )}
+              {loadingBlock ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          {latestBlock ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'var(--space-4)'
+            }}>
+              <div style={{
+                background: 'var(--surface-secondary)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <p style={{ 
+                  fontSize: 'var(--text-xs)', 
+                  color: 'var(--text-tertiary)', 
+                  margin: '0 0 var(--space-1) 0' 
+                }}>
+                  Block Height
+                </p>
+                <p style={{ 
+                  fontSize: 'var(--text-xl)', 
+                  fontWeight: 'var(--font-bold)', 
+                  color: 'var(--text-primary)', 
+                  margin: 0 
+                }}>
+                  {latestBlock.height.toLocaleString()}
+                </p>
+              </div>
+              <div style={{
+                background: 'var(--surface-secondary)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <p style={{ 
+                  fontSize: 'var(--text-xs)', 
+                  color: 'var(--text-tertiary)', 
+                  margin: '0 0 var(--space-1) 0' 
+                }}>
+                  Transactions
+                </p>
+                <p style={{ 
+                  fontSize: 'var(--text-xl)', 
+                  fontWeight: 'var(--font-bold)', 
+                  color: 'var(--text-primary)', 
+                  margin: 0 
+                }}>
+                  {latestBlock.n_tx || 0}
+                </p>
+              </div>
+              <div style={{
+                background: 'var(--surface-secondary)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <p style={{ 
+                  fontSize: 'var(--text-xs)', 
+                  color: 'var(--text-tertiary)', 
+                  margin: '0 0 var(--space-1) 0' 
+                }}>
+                  Timestamp
+                </p>
+                <p style={{ 
+                  fontSize: 'var(--text-base)', 
+                  fontWeight: 'var(--font-medium)', 
+                  color: 'var(--text-primary)', 
+                  margin: 0 
+                }}>
+                  {new Date(latestBlock.time).toLocaleTimeString()}
+                </p>
+              </div>
+              <div style={{
+                background: 'var(--surface-secondary)',
+                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <p style={{ 
+                  fontSize: 'var(--text-xs)', 
+                  color: 'var(--text-tertiary)', 
+                  margin: '0 0 var(--space-1) 0' 
+                }}>
+                  Block Hash
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <code style={{ 
+                    fontSize: 'var(--text-sm)', 
+                    color: 'var(--color-primary-400)', 
+                    fontFamily: 'var(--font-family-mono)',
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {latestBlock.hash.substring(0, 12)}...
+                  </code>
                   <button
-                    key={action.id}
-                    className="glass-button w-12 h-12 flex items-center justify-center group relative overflow-hidden"
-                    title={action.label}
+                    onClick={() => navigator.clipboard.writeText(latestBlock.hash)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-tertiary)',
+                      cursor: 'pointer',
+                      padding: 'var(--space-1)',
+                      borderRadius: 'var(--radius-sm)',
+                      transition: 'color var(--transition-fast)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--text-primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                    }}
+                    title="Copy hash"
                   >
-                    <action.icon className="w-5 h-5 text-dark-400 group-hover:text-electric-400 transition-colors relative z-10" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-electric-500/20 to-bitcoin-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <Copy style={{ width: '16px', height: '16px' }} />
                   </button>
-                ))}
+                </div>
               </div>
+            </div>
+          ) : (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: 'var(--space-8)', 
+              color: 'var(--text-tertiary)' 
+            }}>
+              Click Refresh to load latest block data
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Chart Placeholder */}
+      <section>
+        <div style={{
+          background: 'var(--surface-primary)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-6)'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            marginBottom: 'var(--space-6)' 
+          }}>
+            <div>
+              <h3 style={{ 
+                fontSize: 'var(--text-lg)', 
+                fontWeight: 'var(--font-semibold)', 
+                color: 'var(--text-primary)', 
+                margin: '0 0 var(--space-1) 0' 
+              }}>
+                Transaction Volume Trends
+              </h3>
+              <p style={{ 
+                fontSize: 'var(--text-sm)', 
+                color: 'var(--text-tertiary)', 
+                margin: 0 
+              }}>
+                24-hour analysis with anomaly detection
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button style={{
+                padding: 'var(--space-2) var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                background: 'var(--color-primary-500)',
+                color: 'var(--color-neutral-50)',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer'
+              }}>24H</button>
+              <button style={{
+                padding: 'var(--space-2) var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                background: 'transparent',
+                color: 'var(--text-tertiary)',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer'
+              }}>7D</button>
+              <button style={{
+                padding: 'var(--space-2) var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                background: 'transparent',
+                color: 'var(--text-tertiary)',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer'
+              }}>30D</button>
+            </div>
+          </div>
+          <div style={{ 
+            height: '300px', 
+            background: 'var(--surface-secondary)', 
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid var(--border-subtle)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <BarChart3 style={{ 
+                width: '48px', 
+                height: '48px', 
+                color: 'var(--text-tertiary)', 
+                margin: '0 auto var(--space-4)' 
+              }} />
+              <p style={{ color: 'var(--text-tertiary)' }}>Chart visualization will be rendered here</p>
             </div>
           </div>
         </div>
-      </header>
+      </section>
 
-      {/* Navigation Tabs */}
-      <nav className="glass-card border-0 border-b border-white/5 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {tabs.map((tab, index) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center space-x-2 py-6 px-1 border-b-2 font-medium text-sm transition-all duration-300 group ${
-                  activeTab === tab.id
-                    ? 'border-electric-500 text-electric-400'
-                    : 'border-transparent text-dark-500 hover:text-dark-300 hover:border-electric-300'
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
+      {/* Live Transactions Preview */}
+      <section>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 'var(--space-6)'
+        }}>
+          <h2 style={{ 
+            fontSize: 'var(--text-2xl)', 
+            fontWeight: 'var(--font-semibold)', 
+            color: 'var(--text-primary)', 
+            margin: 0
+          }}>
+            Recent Transactions
+          </h2>
+          <button
+            onClick={() => setActiveTab('live')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-2) var(--space-3)',
+              background: 'transparent',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-sm)',
+              fontWeight: 'var(--font-medium)',
+              transition: 'all var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--surface-interactive)';
+              e.currentTarget.style.borderColor = 'var(--text-secondary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+            }}
+          >
+            <Eye style={{ width: '16px', height: '16px' }} />
+            View Live Feed
+          </button>
+        </div>
+        <LiveTransactionFeed maxTransactions={5} />
+      </section>
+    </div>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return renderOverview();
+      case 'live':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+            <LiveTransactionFeed maxTransactions={15} />
+          </div>
+        );
+      case 'ledger':
+        return <LedgerAnalysis />;
+      case 'blocks':
+        return <BlockAnalysis />;
+      case 'hash':
+        return <HashAnalysis />;
+      case 'wallet':
+        return <WalletAnalysis />;
+      case 'anomaly':
+        return <AnomalyDetection />;
+      default:
+        return (
+          <div style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-6)',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ 
+              fontSize: 'var(--text-lg)', 
+              fontWeight: 'var(--font-semibold)', 
+              color: 'var(--text-primary)', 
+              margin: '0 0 var(--space-2) 0' 
+            }}>
+              {tabs.find(tab => tab.id === activeTab)?.name}
+            </h3>
+            <p style={{ color: 'var(--text-tertiary)', margin: 0 }}>
+              Feature coming soon
+            </p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+      {/* Navigation */}
+      <nav style={{
+        background: 'var(--surface-primary)',
+        borderBottom: '1px solid var(--border-subtle)',
+        padding: 'var(--space-5) 0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backdropFilter: 'blur(12px)',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <div style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '0 var(--space-6)'
+        }}>
+          {/* Top Navigation Bar */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            marginBottom: 'var(--space-6)' 
+          }}>
+            {/* Brand */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: '240px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: 'var(--radius-lg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600))',
+                boxShadow: 'var(--shadow-md)'
+              }}>
+                <Bitcoin style={{ width: '20px', height: '20px', color: 'white' }} />
+              </div>
+              <div>
+                <div style={{ 
+                  fontSize: 'var(--text-xl)', 
+                  fontWeight: 'var(--font-semibold)', 
+                  color: 'var(--text-primary)',
+                  lineHeight: 'var(--leading-tight)'
+                }}>
+                  CryptoAnalyzer
+                </div>
+                <div style={{ 
+                  fontSize: 'var(--text-xs)', 
+                  color: 'var(--text-tertiary)',
+                  lineHeight: 'var(--leading-tight)'
+                }}>
+                  Blockchain Intelligence Platform
+                </div>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div style={{ flex: 1, maxWidth: '500px', margin: '0 var(--space-6)' }}>
+              <div style={{ position: 'relative' }}>
+                <Search style={{
+                  position: 'absolute',
+                  left: 'var(--space-4)',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '18px',
+                  height: '18px',
+                  color: 'var(--text-tertiary)',
+                  zIndex: 1
+                }} />
+                <input
+                  type="text"
+                  placeholder="Search transactions, addresses, blocks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch(searchQuery);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    paddingLeft: 'calc(var(--space-4) + 18px + var(--space-3))',
+                    paddingRight: 'var(--space-4)',
+                    paddingTop: 'var(--space-3)',
+                    paddingBottom: 'var(--space-3)',
+                    background: 'var(--surface-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-lg)',
+                    color: 'var(--text-primary)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 'var(--font-medium)',
+                    outline: 'none',
+                    transition: 'all var(--transition-fast)',
+                    boxShadow: 'var(--shadow-sm)',
+                    minHeight: '48px',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary-500)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14, 165, 233, 0.15), var(--shadow-md)';
+                    e.currentTarget.style.background = 'var(--surface-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    e.currentTarget.style.background = 'var(--surface-secondary)';
+                  }}
+                  onMouseEnter={(e) => {
+                    if (e.currentTarget !== document.activeElement) {
+                      e.currentTarget.style.borderColor = 'var(--border-default)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (e.currentTarget !== document.activeElement) {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '240px', justifyContent: 'flex-end' }}>
+              <button style={{
+                padding: 'var(--space-3)',
+                background: 'transparent',
+                border: '1px solid transparent',
+                color: 'var(--text-tertiary)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-md)',
+                minHeight: '48px',
+                minWidth: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--surface-interactive)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.borderColor = 'transparent';
+              }}
+              title="Notifications"
               >
-                <tab.icon className={`w-5 h-5 transition-all duration-300 ${
-                  activeTab === tab.id ? 'text-electric-400 animate-pulse' : 'group-hover:scale-110'
-                }`} />
-                <span className="relative">
-                  {tab.label}
-                  {activeTab === tab.id && (
-                    <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-full h-0.5 bg-gradient-to-r from-electric-500 to-bitcoin-500 animate-fade-in"></div>
-                  )}
-                </span>
+                <Bell style={{ width: '20px', height: '20px' }} />
               </button>
-            ))}
+              <button style={{
+                padding: 'var(--space-3)',
+                background: 'transparent',
+                border: '1px solid transparent',
+                color: 'var(--text-tertiary)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-md)',
+                minHeight: '48px',
+                minWidth: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--surface-interactive)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'var(--text-tertiary)';
+                e.currentTarget.style.borderColor = 'transparent';
+              }}
+              title="Settings"
+              >
+                <Settings style={{ width: '20px', height: '20px' }} />
+              </button>
+              <button style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'var(--color-primary-500)',
+                color: 'var(--color-neutral-50)',
+                border: '1px solid var(--color-primary-500)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontSize: 'var(--text-sm)',
+                fontWeight: 'var(--font-medium)',
+                minHeight: '48px',
+                transition: 'all var(--transition-fast)',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-primary-600)';
+                e.currentTarget.style.borderColor = 'var(--color-primary-600)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-primary-500)';
+                e.currentTarget.style.borderColor = 'var(--color-primary-500)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+              >
+                <Download style={{ width: '16px', height: '16px' }} />
+                Export Data
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div style={{
+            display: 'flex',
+            gap: 'var(--space-1)',
+            padding: 'var(--space-2)',
+            background: 'var(--surface-secondary)',
+            borderRadius: 'var(--radius-xl)',
+            overflowX: 'auto',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.05)'
+          }}>
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-2)',
+                    padding: 'var(--space-3) var(--space-4)',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: isActive ? 'var(--font-semibold)' : 'var(--font-medium)',
+                    color: isActive ? 'var(--color-neutral-50)' : 'var(--text-tertiary)',
+                    background: isActive ? 'var(--color-primary-500)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-lg)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                    whiteSpace: 'nowrap',
+                    minHeight: '44px',
+                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.background = 'var(--surface-interactive)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--text-tertiary)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <Icon style={{ width: '16px', height: '16px' }} />
+                  <span>{tab.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8 relative z-10">
-        <div className="animate-fade-in">
-          {activeTab === 'overview' && (
-            <div className="space-y-8">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                  <StatCard
-                    title="Total Transactions"
-                    value={stats.totalTransactions.toLocaleString()}
-                    icon={Activity}
-                    color="electric"
-                    change={"+15.7%"}
-                    trend="up"
-                  />
-                </div>
-                <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                  <StatCard
-                    title="Suspicious Transactions"
-                    value={stats.suspiciousTransactions.toLocaleString()}
-                    icon={AlertTriangle}
-                    color="danger"
-                    change={"+3.2%"}
-                    trend="up"
-                  />
-                </div>
-                <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-                  <StatCard
-                    title="Active Wallets"
-                    value={stats.activeWallets.toLocaleString()}
-                    icon={Bitcoin}
-                    color="bitcoin"
-                    change={"+8.4%"}
-                    trend="up"
-                  />
-                </div>
-                <div className="animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                  <StatCard
-                    title="Anomalies Detected"
-                    value={stats.anomaliesDetected.toLocaleString()}
-                    icon={Shield}
-                    color="success"
-                    change={"-12.1%"}
-                    trend="down"
-                  />
-                </div>
-              </div>
-
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <div className="glass-card p-8 animate-slide-up" style={{ animationDelay: '0.5s' }}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-dark-100 mb-2">Transaction Volume Analysis</h3>
-                      <p className="text-sm text-dark-400">Last 6 months blockchain activity</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-success-400 font-medium">LIVE</span>
-                    </div>
-                  </div>
-                  <TransactionChart />
-                </div>
-                
-                <div className="glass-card p-8 animate-slide-up" style={{ animationDelay: '0.6s' }}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-semibold text-dark-100 mb-2">Anomaly Detection</h3>
-                      <p className="text-sm text-dark-400">Real-time threat monitoring</p>
-                    </div>
-                    <button className="glow-button px-4 py-2 rounded-lg text-white text-sm font-medium flex items-center space-x-2">
-                      <Eye className="w-4 h-4" />
-                      <span>View All</span>
-                    </button>
-                  </div>
-                  <AnomalyDetection />
-                </div>
-              </div>
-
-              {/* Latest Bitcoin Block */}
-              <div className="glass-card p-8 animate-slide-up" style={{ animationDelay: '0.7s' }}>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-semibold text-dark-100 mb-2">Latest Bitcoin Block</h3>
-                    <p className="text-sm text-dark-400">Most recent block on the Bitcoin blockchain</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse"></div>
-                      <span className="text-xs text-success-400 font-medium">LIVE</span>
-                    </div>
-                    <button
-                      onClick={fetchLatestBlock}
-                      disabled={loadingBlock}
-                      className="glow-button px-4 py-2 rounded-lg text-white text-sm font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {loadingBlock && <Loader className="w-4 h-4 animate-spin" />}
-                      <span>{loadingBlock ? 'Loading...' : 'Refresh'}</span>
-                    </button>
-                  </div>
-                </div>
-                
-                {loadingBlock ? (
-                  <div className="py-12 text-center">
-                    <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-electric-400" />
-                    <div className="text-dark-400">Loading latest block...</div>
-                  </div>
-                ) : latestBlock ? (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      <div className="glass-card p-4 border border-white/10">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-bitcoin-500/20 rounded-lg flex items-center justify-center">
-                            <BarChart3 className="w-5 h-5 text-bitcoin-400" />
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-dark-100">#{latestBlock.height.toLocaleString()}</div>
-                            <div className="text-xs text-dark-400">Block Height</div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="glass-card p-4 border border-white/10">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-electric-500/20 rounded-lg flex items-center justify-center">
-                            <Activity className="w-5 h-5 text-electric-400" />
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-dark-100">{latestBlock.txIndexes.length.toLocaleString()}</div>
-                            <div className="text-xs text-dark-400">Transactions</div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="glass-card p-4 border border-white/10">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-success-500/20 rounded-lg flex items-center justify-center">
-                            <TrendingUp className="w-5 h-5 text-success-400" />
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-dark-100">{new Date(latestBlock.time * 1000).toLocaleTimeString()}</div>
-                            <div className="text-xs text-dark-400">Block Time</div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="glass-card p-4 border border-white/10">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-warning-500/20 rounded-lg flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-warning-400" />
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-dark-100">#{latestBlock.block_index.toLocaleString()}</div>
-                            <div className="text-xs text-dark-400">Block Index</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="glass-card p-4 border border-white/10">
-                      <h4 className="text-sm font-medium text-dark-200 mb-3">Block Hash</h4>
-                      <div className="flex items-center space-x-2">
-                        <div className="text-sm font-mono text-dark-100 break-all">
-                          {latestBlock.hash}
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(latestBlock.hash)}
-                          className="text-dark-400 hover:text-electric-400 transition-colors"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        <a
-                          href={`https://blockstream.info/block/${latestBlock.hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-electric-400 hover:text-electric-300 transition-colors flex items-center space-x-1"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          <span>View</span>
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-12 text-center">
-                    <div className="text-dark-400">
-                      No block data available. Click Refresh to load latest block.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'anomalies' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-bitcoin-400 to-electric-400 bg-clip-text text-transparent">
-                    Anomaly Detection Engine
-                  </h2>
-                  <p className="text-dark-400 mt-2">Advanced AI-powered threat detection and analysis</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <AnomalyDetection detailed />
-            </div>
-          )}
-
-          {activeTab === 'wallets' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-bitcoin-400 to-electric-400 bg-clip-text text-transparent">
-                    Enhanced Wallet Analysis
-                  </h2>
-                  <p className="text-dark-400 mt-2">Comprehensive blockchain wallet investigation tools</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <EnhancedWalletAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'hash' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-bitcoin-400 to-electric-400 bg-clip-text text-transparent">
-                    Transaction Hash Analysis
-                  </h2>
-                  <p className="text-dark-400 mt-2">Deep dive into Bitcoin transaction details, inputs, outputs, and technical information</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <HashAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'block' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                    Block Analysis
-                  </h2>
-                  <p className="text-dark-400 mt-2">Comprehensive Bitcoin block analysis with all transactions, addresses, and technical details</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <BlockAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'ledger' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                    Ledger Portfolio Analytics
-                  </h2>
-                  <p className="text-dark-400 mt-2">Real-time cryptocurrency market data and portfolio insights using CoinGecko API</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
-              </div>
-              <LedgerAnalysis />
-            </div>
-          )}
-
-          {activeTab === 'live' && (
-            <div className="glass-card p-8 animate-slide-up">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-                    Live Bitcoin Transactions
-                  </h2>
-                  <p className="text-dark-400 mt-2">Real-time Bitcoin network activity with transaction details</p>
-                </div>
-                <div className="status-online w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-              </div>
-              <LiveTransactionTracker />
-            </div>
-          )}
+      <main style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        padding: 'var(--space-8) var(--space-4)'
+      }}>
+        <div style={{
+          opacity: isLoaded ? 1 : 0,
+          transform: isLoaded ? 'translateY(0)' : 'translateY(1rem)',
+          transition: 'all var(--transition-slow)'
+        }}>
+          {renderTabContent()}
         </div>
       </main>
+
+      {/* Add CSS animation for loading spinner */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

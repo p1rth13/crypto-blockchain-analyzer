@@ -5,43 +5,74 @@ interface StatCardProps {
   title: string;
   value: string;
   icon: LucideIcon;
-  color: 'blue' | 'red' | 'green' | 'purple' | 'yellow' | 'electric' | 'bitcoin' | 'success' | 'danger' | 'warning';
+  color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'indigo' | 'teal';
   change?: string;
   trend?: 'up' | 'down' | 'neutral';
+  description?: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, change, trend }) => {
-  const colorClasses = {
-    blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    red: 'bg-red-500/20 text-red-400 border-red-500/30',
-    green: 'bg-green-500/20 text-green-400 border-green-500/30',
-    purple: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    yellow: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-    electric: 'bg-electric-500/20 text-electric-400 border-electric-500/30',
-    bitcoin: 'bg-bitcoin-500/20 text-bitcoin-400 border-bitcoin-500/30',
-    success: 'bg-success-500/20 text-success-400 border-success-500/30',
-    danger: 'bg-danger-500/20 text-danger-400 border-danger-500/30',
-    warning: 'bg-warning-500/20 text-warning-400 border-warning-500/30',
+const StatCard: React.FC<StatCardProps> = ({ 
+  title, 
+  value, 
+  icon: Icon, 
+  color = 'blue', 
+  change, 
+  trend = 'neutral',
+  description 
+}) => {
+  const colorConfig = {
+    blue: {
+      bg: 'bg-slate-800',
+      text: 'text-blue-400',
+      border: 'border-slate-700',
+      accent: 'bg-blue-500',
+      changeColor: 'text-blue-400'
+    },
+    green: {
+      bg: 'bg-slate-800',
+      text: 'text-emerald-400', 
+      border: 'border-slate-700',
+      accent: 'bg-emerald-500',
+      changeColor: 'text-emerald-400'
+    },
+    yellow: {
+      bg: 'bg-slate-800',
+      text: 'text-amber-400',
+      border: 'border-slate-700', 
+      accent: 'bg-amber-500',
+      changeColor: 'text-amber-400'
+    },
+    red: {
+      bg: 'bg-slate-800',
+      text: 'text-red-400',
+      border: 'border-slate-700',
+      accent: 'bg-red-500', 
+      changeColor: 'text-red-400'
+    },
+    purple: {
+      bg: 'bg-slate-800',
+      text: 'text-purple-400',
+      border: 'border-slate-700',
+      accent: 'bg-purple-500',
+      changeColor: 'text-purple-400'
+    },
+    indigo: {
+      bg: 'bg-slate-800', 
+      text: 'text-indigo-400',
+      border: 'border-slate-700',
+      accent: 'bg-indigo-500',
+      changeColor: 'text-indigo-400'
+    },
+    teal: {
+      bg: 'bg-slate-800',
+      text: 'text-teal-400',
+      border: 'border-slate-700',
+      accent: 'bg-teal-500',
+      changeColor: 'text-teal-400'
+    }
   };
 
-  const iconGlowClasses = {
-    blue: 'shadow-blue-500/50',
-    red: 'shadow-red-500/50',
-    green: 'shadow-green-500/50',
-    purple: 'shadow-purple-500/50',
-    yellow: 'shadow-yellow-500/50',
-    electric: 'shadow-electric-500/50',
-    bitcoin: 'shadow-bitcoin-500/50',
-    success: 'shadow-success-500/50',
-    danger: 'shadow-danger-500/50',
-    warning: 'shadow-warning-500/50',
-  };
-
-  const getTrendColor = () => {
-    if (trend === 'up') return 'text-success-400';
-    if (trend === 'down') return 'text-danger-400';
-    return 'text-dark-400';
-  };
+  const config = colorConfig[color];
 
   const getTrendIcon = () => {
     if (trend === 'up') return '↗';
@@ -49,39 +80,65 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, ch
     return '→';
   };
 
+  // Simple mini chart data
+  const miniChartData = [
+    { value: Math.random() * 50 + 25 },
+    { value: Math.random() * 50 + 30 },
+    { value: Math.random() * 50 + 35 },
+    { value: Math.random() * 50 + 40 },
+    { value: Math.random() * 50 + 45 },
+    { value: Math.random() * 50 + 50 },
+    { value: Math.random() * 50 + 55 }
+  ];
+
   return (
-    <div className="glass-card group hover:scale-105 transition-all duration-300 hover:shadow-glow overflow-hidden relative">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      
-      <div className="p-6 relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-dark-400 mb-1 tracking-wide uppercase">{title}</p>
-            <p className="text-3xl font-bold text-dark-100 tracking-tight">
-              {value}
-            </p>
+    <div className={`${config.bg} ${config.border} border rounded-xl p-6 hover:border-slate-600 transition-all duration-200 group`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-gray-400 text-sm font-medium uppercase tracking-wide">
+              {title}
+            </h3>
+            <div className={`p-2 rounded-lg ${config.accent}`}>
+              <Icon className="w-5 h-5 text-white" />
+            </div>
           </div>
           
-          <div className={`flex items-center justify-center w-16 h-16 rounded-2xl border backdrop-blur-sm ${colorClasses[color]} ${iconGlowClasses[color]} shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110`}>
-            <Icon className="w-8 h-8" />
+          <div className="mb-3">
+            <div className="text-2xl font-bold text-white mb-1">
+              {value}
+            </div>
+            {change && (
+              <div className={`flex items-center text-sm ${config.changeColor}`}>
+                <span className="mr-1">{getTrendIcon()}</span>
+                <span className="font-medium">{change}</span>
+                <span className="text-gray-500 ml-1">vs last month</span>
+              </div>
+            )}
+          </div>
+
+          {/* Mini Chart */}
+          <div className="flex items-end space-x-1 h-8">
+            {miniChartData.map((point, index) => (
+              <div
+                key={index}
+                className={`${config.accent} rounded-sm opacity-70 group-hover:opacity-100 transition-opacity`}
+                style={{
+                  width: '4px',
+                  height: `${(point.value / 100) * 32}px`,
+                  minHeight: '2px'
+                }}
+              />
+            ))}
           </div>
         </div>
-        
-        {change && (
-          <div className="flex items-center space-x-2">
-            <span className={`text-sm font-bold ${getTrendColor()}`}>
-              {getTrendIcon()} {change}
-            </span>
-            <span className="text-xs text-dark-500">vs last month</span>
-          </div>
-        )}
       </div>
       
-      {/* Animated border */}
-      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${colorClasses[color].includes('electric') ? 'from-electric-500/20 to-bitcoin-500/20' : colorClasses[color].includes('bitcoin') ? 'from-bitcoin-500/20 to-electric-500/20' : colorClasses[color].includes('success') ? 'from-success-500/20 to-electric-500/20' : 'from-electric-500/20 to-bitcoin-500/20'} blur-sm`}></div>
-      </div>
+      {description && (
+        <div className="mt-4 pt-4 border-t border-slate-700">
+          <p className="text-gray-400 text-sm">{description}</p>
+        </div>
+      )}
     </div>
   );
 };

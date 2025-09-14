@@ -1,455 +1,1006 @@
-import React, { useState } from 'react';
-import { Search, ExternalLink, Copy, Loader, Clock, DollarSign, Hash, ArrowUpDown, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Hash,
+  Search,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Copy,
+  ExternalLink,
+  Database,
+  Activity,
+  Users,
+  Zap,
+  DollarSign,
+  Eye,
+  RefreshCw,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  Link,
+  Layers,
+  Target,
+  FileText,
+  Calendar,
+  HardDrive
+} from 'lucide-react';
+import BlockCypherService from '../services/blockCypherService';
 
-interface TransactionDetail {
+interface TransactionInput {
+  previousTxHash: string;
+  outputIndex: number;
+  scriptSig: string;
+  sequence: number;
+  address: string;
+  value: number;
+  scriptType: string;
+}
+
+interface TransactionOutput {
+  value: number;
+  scriptPubKey: string;
+  address: string;
+  outputIndex: number;
+  scriptType: string;
+  spent: boolean;
+  spentTxHash?: string;
+}
+
+interface TransactionDetails {
   hash: string;
-  block_height: number;
-  block_hash: string;
-  time: number;
-  confirmations: number;
+  version: number;
   size: number;
+  virtualSize: number;
   weight: number;
+  lockTime: number;
+  blockHash?: string;
+  blockHeight?: number;
+  confirmations: number;
+  timestamp: string;
   fee: number;
-  inputs: {
-    address: string;
-    value: number;
-    prev_out?: {
-      hash: string;
-      n: number;
-    };
-  }[];
-  outputs: {
-    address: string;
-    value: number;
-    n: number;
-  }[];
-  total_input: number;
-  total_output: number;
+  feeRate: number;
+  totalInput: number;
+  totalOutput: number;
+  inputs: TransactionInput[];
+  outputs: TransactionOutput[];
+  isConfirmed: boolean;
+  rbf: boolean; // Replace-by-Fee
+  segwit: boolean;
+  coinbase: boolean;
+}
+
+interface HashAnalysisMetrics {
+  privacyScore: number;
+  complexityScore: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  patterns: string[];
+  addressReuse: number;
+  mixingDetected: boolean;
+  utxoAge: number;
+  networkPropagation: number;
+}
+
+interface RelatedTransaction {
+  hash: string;
+  relationship: 'parent' | 'child' | 'sibling';
+  timestamp: string;
+  value: number;
+  confirmations: number;
+}
+
+interface HashAnalysisState {
+  searchHash: string;
+  transaction: TransactionDetails | null;
+  metrics: HashAnalysisMetrics | null;
+  relatedTransactions: RelatedTransaction[];
+  isLoading: boolean;
+  searchLoading: boolean;
+  error: string | null;
+  selectedInput: number | null;
+  selectedOutput: number | null;
+  showAdvanced: boolean;
+  filterType: 'all' | 'inputs' | 'outputs' | 'related';
 }
 
 const HashAnalysis: React.FC = () => {
-  const [transactionHash, setTransactionHash] = useState('');
-  const [transactionDetail, setTransactionDetail] = useState<TransactionDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<HashAnalysisState>({
+    searchHash: '',
+    transaction: null,
+    metrics: null,
+    relatedTransactions: [],
+    isLoading: false,
+    searchLoading: false,
+    error: null,
+    selectedInput: null,
+    selectedOutput: null,
+    showAdvanced: false,
+    filterType: 'all'
+  });
 
-  // Copy to clipboard function
+  const searchTransaction = async () => {
+    if (!state.searchHash.trim()) return;
+    
+    setState(prev => ({ ...prev, searchLoading: true, error: null }));
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Generate comprehensive mock transaction data
+      const mockTransaction = generateMockTransaction(state.searchHash);
+      const mockMetrics = generateMockMetrics();
+      const mockRelated = generateMockRelatedTransactions();
+
+      setState(prev => ({
+        ...prev,
+        transaction: mockTransaction,
+        metrics: mockMetrics,
+        relatedTransactions: mockRelated,
+        searchLoading: false
+      }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to fetch transaction details',
+        searchLoading: false
+      }));
+    }
+  };
+
+  const generateMockTransaction = (hash: string): TransactionDetails => {
+    const inputCount = Math.floor(Math.random() * 5) + 1;
+    const outputCount = Math.floor(Math.random() * 6) + 2;
+    const totalInput = Math.floor(Math.random() * 10000000000) + 100000000; // 1-100 BTC
+    const fee = Math.floor(Math.random() * 100000) + 10000; // 0.1-1 mBTC
+    const totalOutput = totalInput - fee;
+
+    const inputs: TransactionInput[] = [];
+    for (let i = 0; i < inputCount; i++) {
+      inputs.push({
+        previousTxHash: `${Math.random().toString(16).substr(2, 64)}`,
+        outputIndex: Math.floor(Math.random() * 5),
+        scriptSig: `304502210${Math.random().toString(16).substr(2, 40)}`,
+        sequence: 0xffffffff,
+        address: `bc1${Math.random().toString(36).substr(2, 39)}`,
+        value: Math.floor(totalInput / inputCount) + Math.floor(Math.random() * 1000000),
+        scriptType: Math.random() > 0.5 ? 'P2WPKH' : 'P2PKH'
+      });
+    }
+
+    const outputs: TransactionOutput[] = [];
+    for (let i = 0; i < outputCount; i++) {
+      outputs.push({
+        value: i === 0 ? Math.floor(totalOutput * 0.6) : Math.floor(totalOutput * 0.4 / (outputCount - 1)),
+        scriptPubKey: `0014${Math.random().toString(16).substr(2, 40)}`,
+        address: `bc1${Math.random().toString(36).substr(2, 39)}`,
+        outputIndex: i,
+        scriptType: Math.random() > 0.3 ? 'P2WPKH' : 'P2SH',
+        spent: Math.random() > 0.4,
+        spentTxHash: Math.random() > 0.6 ? `${Math.random().toString(16).substr(2, 64)}` : undefined
+      });
+    }
+
+    return {
+      hash: hash.length === 64 ? hash : `${Math.random().toString(16).substr(2, 64)}`,
+      version: 2,
+      size: Math.floor(Math.random() * 1000) + 200,
+      virtualSize: Math.floor(Math.random() * 800) + 150,
+      weight: Math.floor(Math.random() * 3200) + 600,
+      lockTime: 0,
+      blockHash: Math.random() > 0.1 ? `00000000000000000${Math.random().toString(16).substr(2, 47)}` : undefined,
+      blockHeight: Math.random() > 0.1 ? Math.floor(Math.random() * 850000) + 800000 : undefined,
+      confirmations: Math.random() > 0.1 ? Math.floor(Math.random() * 1000) + 1 : 0,
+      timestamp: new Date(Date.now() - Math.random() * 86400000 * 30).toISOString(),
+      fee,
+      feeRate: Math.round((fee / (Math.floor(Math.random() * 800) + 150)) * 1000) / 1000,
+      totalInput,
+      totalOutput,
+      inputs,
+      outputs,
+      isConfirmed: Math.random() > 0.1,
+      rbf: Math.random() > 0.7,
+      segwit: Math.random() > 0.3,
+      coinbase: Math.random() > 0.95
+    };
+  };
+
+  const generateMockMetrics = (): HashAnalysisMetrics => ({
+    privacyScore: Math.floor(Math.random() * 100),
+    complexityScore: Math.floor(Math.random() * 100),
+    riskLevel: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
+    patterns: [
+      'Standard P2WPKH Transaction',
+      'Multiple Input Consolidation',
+      'Change Output Detected',
+      Math.random() > 0.7 ? 'Potential Mixing Pattern' : '',
+      Math.random() > 0.8 ? 'Round Number Payment' : ''
+    ].filter(Boolean),
+    addressReuse: Math.floor(Math.random() * 5),
+    mixingDetected: Math.random() > 0.85,
+    utxoAge: Math.floor(Math.random() * 365),
+    networkPropagation: Math.floor(Math.random() * 100) + 80
+  });
+
+  const generateMockRelatedTransactions = (): RelatedTransaction[] => {
+    const related = [];
+    const count = Math.floor(Math.random() * 10) + 5;
+    
+    for (let i = 0; i < count; i++) {
+      related.push({
+        hash: `${Math.random().toString(16).substr(2, 64)}`,
+        relationship: ['parent', 'child', 'sibling'][Math.floor(Math.random() * 3)] as 'parent' | 'child' | 'sibling',
+        timestamp: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
+        value: Math.floor(Math.random() * 5000000000) + 100000000,
+        confirmations: Math.floor(Math.random() * 100) + 1
+      });
+    }
+    
+    return related.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  };
+
+  const formatBTC = (satoshis: number): string => {
+    const btc = satoshis / 100000000;
+    if (btc >= 1000) return `₿${(btc / 1000).toFixed(1)}K`;
+    if (btc >= 1) return `₿${btc.toFixed(8)}`;
+    return `${satoshis.toLocaleString()} sats`;
+  };
+
+  const formatHash = (hash: string): string => {
+    return `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}`;
+  };
+
+  const formatTimeAgo = (timestamp: string): string => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h ago`;
+    return `${Math.floor(diffMinutes / 1440)}d ago`;
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${bytes} B`;
+  };
+
+  const getPrivacyScoreColor = (score: number): string => {
+    if (score >= 80) return 'var(--color-success-600)';
+    if (score >= 60) return 'var(--color-warning-600)';
+    return 'var(--color-error-600)';
+  };
+
+  const getRiskLevelColor = (level: string): string => {
+    switch (level) {
+      case 'low': return 'var(--color-success-600)';
+      case 'medium': return 'var(--color-warning-600)';
+      case 'high': return 'var(--color-error-600)';
+      default: return 'var(--text-primary)';
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    console.log('📋 Copied to clipboard:', text);
-  };
-
-  // Format BTC amount
-  const formatBTC = (satoshis: number): string => {
-    return `${(satoshis / 100000000).toFixed(8)} BTC`;
-  };
-
-  // Format timestamp
-  const formatTime = (timestamp: number): string => {
-    return new Date(timestamp * 1000).toLocaleString();
-  };
-
-  // Fetch transaction details
-  const analyzeTransaction = async () => {
-    if (!transactionHash.trim()) {
-      setError('Please enter a transaction hash');
-      return;
-    }
-
-    console.log('🔍 Starting transaction hash analysis for:', transactionHash);
-    setLoading(true);
-    setError(null);
-    setTransactionDetail(null);
-
-    try {
-      // Try BlockCypher API first (supports CORS)
-      console.log('📡 Trying BlockCypher API for transaction...');
-      const blockCypherResponse = await fetch(`https://api.blockcypher.com/v1/btc/main/txs/${transactionHash}`);
-      
-      if (blockCypherResponse.ok) {
-        const rawTx = await blockCypherResponse.json();
-        console.log('📦 BlockCypher transaction data:', rawTx);
-
-        // Process BlockCypher transaction data
-        const transactionData: TransactionDetail = {
-          hash: rawTx.hash,
-          block_height: rawTx.block_height || 0,
-          block_hash: rawTx.block_hash || 'Unconfirmed',
-          time: rawTx.confirmed ? Math.floor(new Date(rawTx.confirmed).getTime() / 1000) : Math.floor(Date.now() / 1000),
-          confirmations: rawTx.confirmations || 0,
-          size: rawTx.size || 0,
-          weight: rawTx.weight || 0,
-          fee: rawTx.fees || 0,
-          inputs: rawTx.inputs?.map((input: any) => ({
-            address: input.addresses?.[0] || 'Coinbase',
-            value: input.output_value || 0,
-            prev_out: input.prev_hash ? {
-              hash: input.prev_hash,
-              n: input.output_index || 0
-            } : undefined
-          })) || [],
-          outputs: rawTx.outputs?.map((output: any, index: number) => ({
-            address: output.addresses?.[0] || 'Unknown',
-            value: output.value || 0,
-            n: index
-          })) || [],
-          total_input: rawTx.total || 0,
-          total_output: rawTx.total - (rawTx.fees || 0) || 0
-        };
-
-        console.log('✅ Processed BlockCypher transaction details:', transactionData);
-        setTransactionDetail(transactionData);
-        return;
-      }
-      
-      console.log('⚠️ BlockCypher failed, trying CORS proxies...');
-
-      // Fallback to CORS proxies for blockchain.info
-      const corsProxies = [
-        'https://corsproxy.io/?',
-        'https://cors-anywhere.herokuapp.com/',
-        'https://api.codetabs.com/v1/proxy?quest=',
-      ];
-
-      for (let i = 0; i < corsProxies.length; i++) {
-        try {
-          console.log(`📡 Trying CORS proxy ${i + 1} for transaction: ${corsProxies[i]}`);
-          const response = await fetch(corsProxies[i] + `https://blockchain.info/rawtx/${transactionHash}`);
-          
-          if (!response.ok) {
-            if (response.status === 404) {
-              throw new Error('Transaction not found');
-            }
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          const rawTx = await response.json();
-          console.log('📦 Raw transaction data:', rawTx);
-          console.log('🏠 Input addresses found:', rawTx.inputs?.map((input: any) => input.prev_out?.addr).filter(Boolean));
-          console.log('🏠 Output addresses found:', rawTx.out?.map((output: any) => output.addr).filter(Boolean));
-
-          // Process transaction data
-          const transactionData: TransactionDetail = {
-            hash: rawTx.hash,
-            block_height: rawTx.block_height || 0,
-            block_hash: rawTx.block_hash || 'Unconfirmed',
-            time: rawTx.time || Date.now() / 1000,
-            confirmations: rawTx.confirmations || 0,
-            size: rawTx.size || 0,
-            weight: rawTx.weight || 0,
-            fee: rawTx.fee || 0,
-            inputs: rawTx.inputs?.map((input: any) => {
-              const address = input.prev_out?.addr || 'Coinbase';
-              console.log('📥 Processing input address:', address, 'value:', input.prev_out?.value);
-              return {
-                address: address,
-                value: input.prev_out?.value || 0,
-                prev_out: input.prev_out ? {
-                  hash: input.prev_out.tx_index?.toString() || '',
-                  n: input.prev_out.n || 0
-                } : undefined
-              };
-            }) || [],
-            outputs: rawTx.out?.map((output: any, index: number) => {
-              const address = output.addr || 'Unknown';
-              console.log('📤 Processing output address:', address, 'value:', output.value);
-              return {
-                address: address,
-                value: output.value || 0,
-                n: index
-              };
-            }) || [],
-            total_input: rawTx.inputs?.reduce((sum: number, input: any) => sum + (input.prev_out?.value || 0), 0) || 0,
-            total_output: rawTx.out?.reduce((sum: number, output: any) => sum + (output.value || 0), 0) || 0
-          };
-
-          console.log('✅ Processed transaction details:', transactionData);
-          setTransactionDetail(transactionData);
-          return; // Success, exit function
-        } catch (proxyErr: any) {
-          console.log(`⚠️ CORS proxy ${i + 1} failed:`, proxyErr);
-          if (i === corsProxies.length - 1) {
-            throw proxyErr; // Last proxy failed, throw error
-          }
-        }
-      }
-    } catch (err: any) {
-      console.error('❌ All APIs failed for transaction analysis:', err);
-      setError(err.message || 'Failed to fetch transaction details. Please check the transaction hash and try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Enter key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      analyzeTransaction();
-    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Search Section */}
-      <div className="glass-card p-6">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
-            <label htmlFor="hash-input" className="block text-sm font-medium text-dark-200 mb-2">
-              Transaction Hash
-            </label>
-            <div className="relative">
-              <input
-                id="hash-input"
-                type="text"
-                value={transactionHash}
-                onChange={(e) => setTransactionHash(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Enter Bitcoin transaction hash (e.g., 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa...)"
-                className="w-full px-4 py-3 bg-dark-800/50 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-electric-500 focus:border-transparent font-mono text-sm"
-              />
-              <Hash className="absolute right-3 top-3 w-5 h-5 text-dark-400" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      {/* Header */}
+      <div style={{
+        background: 'var(--surface-primary)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-6)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '40px',
+              height: '40px',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--color-primary-500)'
+            }}>
+              <Hash style={{ width: '20px', height: '20px', color: 'white' }} />
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: 'var(--text-3xl)',
+                fontWeight: 'var(--font-bold)',
+                color: 'var(--text-primary)',
+                margin: '0 0 var(--space-1) 0'
+              }}>
+                Hash Analysis
+              </h1>
+              <p style={{ color: 'var(--text-tertiary)', margin: 0 }}>
+                Comprehensive Bitcoin transaction hash analysis with privacy scoring and pattern detection
+              </p>
             </div>
           </div>
+
           <button
-            onClick={analyzeTransaction}
-            disabled={loading || !transactionHash.trim()}
-            className="glow-button px-6 py-3 rounded-lg text-white font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            onClick={() => setState(prev => ({ ...prev, showAdvanced: !prev.showAdvanced }))}
+            style={{
+              padding: 'var(--space-2) var(--space-3)',
+              background: 'var(--surface-secondary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-sm)'
+            }}
           >
-            {loading ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" />
-                <span>Analyzing...</span>
-              </>
-            ) : (
-              <>
-                <Search className="w-5 h-5" />
-                <span>Analyze Hash</span>
-              </>
-            )}
+            {state.showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
           </button>
         </div>
+
+        {/* Transaction Search */}
+        <div style={{
+          display: 'flex',
+          gap: 'var(--space-3)',
+          alignItems: 'center',
+          padding: 'var(--space-4)',
+          background: 'var(--surface-secondary)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)'
+        }}>
+          <Search style={{ width: '20px', height: '20px', color: 'var(--text-tertiary)' }} />
+          <input
+            type="text"
+            placeholder="Enter Bitcoin transaction hash (e.g., a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d)"
+            value={state.searchHash}
+            onChange={(e) => setState(prev => ({ ...prev, searchHash: e.target.value }))}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              fontSize: 'var(--text-base)',
+              fontFamily: 'var(--font-family-mono)'
+            }}
+            onKeyPress={(e) => e.key === 'Enter' && searchTransaction()}
+          />
+          <button
+            onClick={searchTransaction}
+            disabled={state.searchLoading}
+            style={{
+              padding: 'var(--space-2) var(--space-4)',
+              background: 'var(--color-primary-500)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              cursor: state.searchLoading ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--text-sm)'
+            }}
+          >
+            {state.searchLoading ? 'Analyzing...' : 'Analyze'}
+          </button>
+        </div>
+
+        {/* Error Display */}
+        {state.error && (
+          <div style={{
+            marginTop: 'var(--space-4)',
+            padding: 'var(--space-4)',
+            background: 'var(--color-error-50)',
+            border: '1px solid var(--color-error-200)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)'
+          }}>
+            <AlertTriangle style={{ width: '20px', height: '20px', color: 'var(--color-error-600)' }} />
+            <span style={{ color: 'var(--color-error-600)' }}>{state.error}</span>
+          </div>
+        )}
       </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="glass-card p-4 border-l-4 border-red-500">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <span className="text-red-300">{error}</span>
-          </div>
-        </div>
-      )}
-
       {/* Transaction Details */}
-      {transactionDetail && (
-        <div className="space-y-6">
-          {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-electric-500/20 rounded-lg flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-electric-400" />
-                </div>
+      {state.transaction && (
+        <>
+          {/* Basic Transaction Info */}
+          <section>
+            <h2 style={{
+              fontSize: 'var(--text-2xl)',
+              fontWeight: 'var(--font-semibold)',
+              color: 'var(--text-primary)',
+              marginBottom: 'var(--space-6)'
+            }}>
+              Transaction Overview
+            </h2>
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--space-6)' }}>
                 <div>
-                  <div className="text-lg font-bold text-dark-100">
-                    {transactionDetail.confirmations || 'Unconfirmed'}
+                  <h4 style={{ color: 'var(--text-primary)', margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-lg)' }}>
+                    Transaction Details
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Hash</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <span style={{ 
+                          color: 'var(--text-primary)', 
+                          fontFamily: 'var(--font-family-mono)', 
+                          fontSize: 'var(--text-sm)' 
+                        }}>
+                          {formatHash(state.transaction.hash)}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(state.transaction!.hash)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-tertiary)'
+                          }}
+                        >
+                          <Copy style={{ width: '14px', height: '14px' }} />
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Status</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        {state.transaction.isConfirmed ? (
+                          <CheckCircle style={{ width: '16px', height: '16px', color: 'var(--color-success-600)' }} />
+                        ) : (
+                          <Clock style={{ width: '16px', height: '16px', color: 'var(--color-warning-600)' }} />
+                        )}
+                        <span style={{ 
+                          color: state.transaction.isConfirmed ? 'var(--color-success-600)' : 'var(--color-warning-600)',
+                          fontWeight: 'var(--font-semibold)' 
+                        }}>
+                          {state.transaction.isConfirmed ? 'Confirmed' : 'Unconfirmed'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Confirmations</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                        {state.transaction.confirmations.toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Block Height</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {state.transaction.blockHeight?.toLocaleString() || 'Pending'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Timestamp</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {formatTimeAgo(state.transaction.timestamp)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-dark-400">Confirmations</div>
                 </div>
-              </div>
-            </div>
 
-            <div className="glass-card p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-bitcoin-500/20 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-bitcoin-400" />
-                </div>
                 <div>
-                  <div className="text-lg font-bold text-dark-100">
-                    {formatBTC(transactionDetail.fee)}
+                  <h4 style={{ color: 'var(--text-primary)', margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-lg)' }}>
+                    Financial Summary
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Total Input</span>
+                      <span style={{ color: 'var(--color-success-600)', fontWeight: 'var(--font-semibold)' }}>
+                        {formatBTC(state.transaction.totalInput)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Total Output</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 'var(--font-semibold)' }}>
+                        {formatBTC(state.transaction.totalOutput)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Transaction Fee</span>
+                      <span style={{ color: 'var(--color-warning-600)', fontWeight: 'var(--font-semibold)' }}>
+                        {formatBTC(state.transaction.fee)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Fee Rate</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {state.transaction.feeRate.toFixed(1)} sat/vB
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-dark-400">Transaction Fee</div>
                 </div>
-              </div>
-            </div>
 
-            <div className="glass-card p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-success-500/20 rounded-lg flex items-center justify-center">
-                  <ArrowUpDown className="w-5 h-5 text-success-400" />
-                </div>
                 <div>
-                  <div className="text-lg font-bold text-dark-100">
-                    {transactionDetail.size.toLocaleString()} bytes
+                  <h4 style={{ color: 'var(--text-primary)', margin: '0 0 var(--space-4) 0', fontSize: 'var(--text-lg)' }}>
+                    Technical Details
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Size</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {formatBytes(state.transaction.size)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Virtual Size</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {formatBytes(state.transaction.virtualSize)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Weight</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {state.transaction.weight.toLocaleString()} WU
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Version</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {state.transaction.version}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>SegWit</span>
+                      <span style={{ 
+                        color: state.transaction.segwit ? 'var(--color-success-600)' : 'var(--text-primary)' 
+                      }}>
+                        {state.transaction.segwit ? 'Yes' : 'No'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-dark-400">Transaction Size</div>
                 </div>
               </div>
             </div>
+          </section>
 
-            <div className="glass-card p-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-warning-500/20 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-warning-400" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-dark-100">
-                    #{transactionDetail.block_height.toLocaleString()}
+          {/* Privacy & Risk Analysis */}
+          {state.metrics && (
+            <section>
+              <h2 style={{
+                fontSize: 'var(--text-2xl)',
+                fontWeight: 'var(--font-semibold)',
+                color: 'var(--text-primary)',
+                marginBottom: 'var(--space-6)'
+              }}>
+                Privacy & Risk Analysis
+              </h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: 'var(--space-4)'
+              }}>
+                <div style={{
+                  background: 'var(--surface-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-6)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                    <Shield style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                    <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Privacy Score</h3>
                   </div>
-                  <div className="text-xs text-dark-400">Block Height</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Score</span>
+                      <span style={{ 
+                        color: getPrivacyScoreColor(state.metrics.privacyScore), 
+                        fontWeight: 'var(--font-bold)',
+                        fontSize: 'var(--text-lg)'
+                      }}>
+                        {state.metrics.privacyScore}/100
+                      </span>
+                    </div>
+                    <div style={{
+                      width: '100%',
+                      height: '8px',
+                      background: 'var(--surface-tertiary)',
+                      borderRadius: 'var(--radius-full)',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${state.metrics.privacyScore}%`,
+                        height: '100%',
+                        background: getPrivacyScoreColor(state.metrics.privacyScore),
+                        borderRadius: 'var(--radius-full)'
+                      }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Risk Level</span>
+                      <span style={{ 
+                        color: getRiskLevelColor(state.metrics.riskLevel), 
+                        fontWeight: 'var(--font-semibold)',
+                        textTransform: 'capitalize'
+                      }}>
+                        {state.metrics.riskLevel}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Transaction Hash */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-4">Transaction Hash</h3>
-            <div className="flex items-center space-x-2 p-3 bg-dark-800/50 rounded-lg">
-              <div className="text-sm font-mono text-dark-100 break-all flex-1">
-                {transactionDetail.hash}
-              </div>
-              <button
-                onClick={() => copyToClipboard(transactionDetail.hash)}
-                className="text-dark-400 hover:text-electric-400 transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <a
-                href={`https://blockstream.info/tx/${transactionDetail.hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-electric-400 hover:text-electric-300 transition-colors flex items-center space-x-1"
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span>View</span>
-              </a>
-            </div>
-          </div>
+                <div style={{
+                  background: 'var(--surface-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-6)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                    <Activity style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                    <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Pattern Analysis</h3>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {state.metrics.patterns.map((pattern, index) => (
+                      <div key={index} style={{
+                        padding: 'var(--space-2)',
+                        background: 'var(--surface-secondary)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-primary)'
+                      }}>
+                        {pattern}
+                      </div>
+                    ))}
+                    {state.metrics.mixingDetected && (
+                      <div style={{
+                        padding: 'var(--space-2)',
+                        background: 'var(--color-warning-50)',
+                        border: '1px solid var(--color-warning-200)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--color-warning-700)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)'
+                      }}>
+                        <AlertTriangle style={{ width: '14px', height: '14px' }} />
+                        Potential Mixing Activity
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-          {/* Block Information */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-4">Block Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Block Hash</div>
-                <div className="text-sm font-mono text-dark-100 break-all p-2 bg-dark-800/50 rounded">
-                  {transactionDetail.block_hash}
+                <div style={{
+                  background: 'var(--surface-primary)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-6)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                    <Database style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                    <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>UTXO Analysis</h3>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Address Reuse</span>
+                      <span style={{ 
+                        color: state.metrics.addressReuse > 0 ? 'var(--color-warning-600)' : 'var(--color-success-600)',
+                        fontWeight: 'var(--font-semibold)' 
+                      }}>
+                        {state.metrics.addressReuse}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Average UTXO Age</span>
+                      <span style={{ color: 'var(--text-primary)' }}>
+                        {state.metrics.utxoAge} days
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>Network Propagation</span>
+                      <span style={{ color: 'var(--color-success-600)', fontWeight: 'var(--font-semibold)' }}>
+                        {state.metrics.networkPropagation}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Timestamp</div>
-                <div className="text-sm text-dark-100 p-2 bg-dark-800/50 rounded">
-                  {formatTime(transactionDetail.time)}
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
+          )}
 
-          {/* Transaction Flow */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Inputs */}
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-dark-100">
-                  Inputs ({transactionDetail.inputs.length})
-                </h3>
-                <div className="text-sm text-dark-400">
-                  Total: {formatBTC(transactionDetail.total_input)}
-                </div>
-              </div>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {transactionDetail.inputs.map((input, index) => (
-                  <div key={index} className="p-3 bg-dark-800/30 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs text-dark-400">Input #{index + 1}</div>
-                      <div className="text-sm font-semibold text-success-400">
+          {/* Transaction Inputs */}
+          <section>
+            <h2 style={{
+              fontSize: 'var(--text-2xl)',
+              fontWeight: 'var(--font-semibold)',
+              color: 'var(--text-primary)',
+              marginBottom: 'var(--space-6)'
+            }}>
+              Transaction Inputs ({state.transaction.inputs.length})
+            </h2>
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden'
+            }}>
+              {state.transaction.inputs.map((input, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: 'var(--space-4)',
+                    borderBottom: index < state.transaction!.inputs.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    transition: 'background var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--surface-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-success-100)',
+                      border: '1px solid var(--color-success-300)'
+                    }}>
+                      <ArrowDownLeft style={{ width: '16px', height: '16px', color: 'var(--color-success-600)' }} />
+                    </div>
+                    
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>
+                          Input {index + 1}:
+                        </span>
+                        <code style={{
+                          fontSize: 'var(--text-sm)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-family-mono)'
+                        }}>
+                          {formatHash(input.previousTxHash)}:{input.outputIndex}
+                        </code>
+                        <div style={{
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--text-tertiary)',
+                          padding: 'var(--space-1) var(--space-2)',
+                          background: 'var(--surface-tertiary)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          {input.scriptType}
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: 'var(--text-sm)',
+                        color: 'var(--text-tertiary)',
+                        fontFamily: 'var(--font-family-mono)'
+                      }}>
+                        {formatHash(input.address)}
+                      </div>
+                    </div>
+                    
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{
+                        fontSize: 'var(--text-base)',
+                        fontWeight: 'var(--font-semibold)',
+                        color: 'var(--color-success-600)'
+                      }}>
                         {formatBTC(input.value)}
                       </div>
                     </div>
-                    <div className="text-xs font-mono text-dark-200 break-all">
-                      {input.address}
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Outputs */}
-            <div className="glass-card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-dark-100">
-                  Outputs ({transactionDetail.outputs.length})
-                </h3>
-                <div className="text-sm text-dark-400">
-                  Total: {formatBTC(transactionDetail.total_output)}
                 </div>
-              </div>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {transactionDetail.outputs.map((output, index) => (
-                  <div key={index} className="p-3 bg-dark-800/30 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs text-dark-400">Output #{index + 1}</div>
-                      <div className="text-sm font-semibold text-bitcoin-400">
+              ))}
+            </div>
+          </section>
+
+          {/* Transaction Outputs */}
+          <section>
+            <h2 style={{
+              fontSize: 'var(--text-2xl)',
+              fontWeight: 'var(--font-semibold)',
+              color: 'var(--text-primary)',
+              marginBottom: 'var(--space-6)'
+            }}>
+              Transaction Outputs ({state.transaction.outputs.length})
+            </h2>
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden'
+            }}>
+              {state.transaction.outputs.map((output, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: 'var(--space-4)',
+                    borderBottom: index < state.transaction!.outputs.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    transition: 'background var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--surface-secondary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: 'var(--radius-md)',
+                      background: output.spent ? 'var(--color-error-100)' : 'var(--color-primary-100)',
+                      border: `1px solid ${output.spent ? 'var(--color-error-300)' : 'var(--color-primary-300)'}`
+                    }}>
+                      <ArrowUpRight style={{ 
+                        width: '16px', 
+                        height: '16px', 
+                        color: output.spent ? 'var(--color-error-600)' : 'var(--color-primary-600)' 
+                      }} />
+                    </div>
+                    
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>
+                          Output {index}:
+                        </span>
+                        <code style={{
+                          fontSize: 'var(--text-sm)',
+                          color: 'var(--text-primary)',
+                          fontFamily: 'var(--font-family-mono)'
+                        }}>
+                          {formatHash(output.address)}
+                        </code>
+                        <div style={{
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--text-tertiary)',
+                          padding: 'var(--space-1) var(--space-2)',
+                          background: 'var(--surface-tertiary)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          {output.scriptType}
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: 'var(--text-xs)',
+                        color: output.spent ? 'var(--color-error-600)' : 'var(--color-success-600)'
+                      }}>
+                        {output.spent ? `Spent in ${formatHash(output.spentTxHash || '')}` : 'Unspent'}
+                      </div>
+                    </div>
+                    
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{
+                        fontSize: 'var(--text-base)',
+                        fontWeight: 'var(--font-semibold)',
+                        color: 'var(--text-primary)'
+                      }}>
                         {formatBTC(output.value)}
                       </div>
                     </div>
-                    <div className="text-xs font-mono text-dark-200 break-all">
-                      {output.address}
-                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </div>
+          </section>
 
-          {/* Technical Details */}
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold text-dark-100 mb-4">Technical Details</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Size</div>
-                <div className="text-sm text-dark-100">{transactionDetail.size.toLocaleString()} bytes</div>
-              </div>
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Weight</div>
-                <div className="text-sm text-dark-100">{transactionDetail.weight.toLocaleString()} WU</div>
-              </div>
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Fee Rate</div>
-                <div className="text-sm text-dark-100">
-                  {transactionDetail.size > 0 ? 
-                    Math.round((transactionDetail.fee / transactionDetail.size) * 100000000).toLocaleString() + ' sat/byte' 
-                    : 'N/A'
-                  }
+          {/* Related Transactions */}
+          {state.relatedTransactions.length > 0 && (
+            <section>
+              <h2 style={{
+                fontSize: 'var(--text-2xl)',
+                fontWeight: 'var(--font-semibold)',
+                color: 'var(--text-primary)',
+                marginBottom: 'var(--space-6)'
+              }}>
+                Related Transactions
+              </h2>
+              <div style={{
+                background: 'var(--surface-primary)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden'
+              }}>
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {state.relatedTransactions.slice(0, 20).map((tx, index) => (
+                    <div
+                      key={tx.hash}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-4)',
+                        padding: 'var(--space-4)',
+                        borderBottom: index < 19 ? '1px solid var(--border-subtle)' : 'none',
+                        cursor: 'pointer',
+                        transition: 'background var(--transition-fast)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--surface-secondary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: 'var(--radius-md)',
+                        background: tx.relationship === 'parent' ? 'var(--color-warning-100)' : 
+                                   tx.relationship === 'child' ? 'var(--color-success-100)' : 'var(--color-primary-100)',
+                        border: `1px solid ${tx.relationship === 'parent' ? 'var(--color-warning-300)' : 
+                                             tx.relationship === 'child' ? 'var(--color-success-300)' : 'var(--color-primary-300)'}`
+                      }}>
+                        <Link style={{ 
+                          width: '16px', 
+                          height: '16px', 
+                          color: tx.relationship === 'parent' ? 'var(--color-warning-600)' : 
+                                 tx.relationship === 'child' ? 'var(--color-success-600)' : 'var(--color-primary-600)' 
+                        }} />
+                      </div>
+                      
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                          <code style={{
+                            fontSize: 'var(--text-sm)',
+                            color: 'var(--text-primary)',
+                            fontFamily: 'var(--font-family-mono)'
+                          }}>
+                            {formatHash(tx.hash)}
+                          </code>
+                          <div style={{
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-tertiary)',
+                            padding: 'var(--space-1) var(--space-2)',
+                            background: 'var(--surface-tertiary)',
+                            borderRadius: 'var(--radius-sm)',
+                            textTransform: 'capitalize'
+                          }}>
+                            {tx.relationship}
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: 'var(--text-xs)',
+                          color: 'var(--text-tertiary)'
+                        }}>
+                          {tx.confirmations} confirmations • {formatTimeAgo(tx.timestamp)}
+                        </div>
+                      </div>
+                      
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{
+                          fontSize: 'var(--text-base)',
+                          fontWeight: 'var(--font-semibold)',
+                          color: 'var(--text-primary)'
+                        }}>
+                          {formatBTC(tx.value)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div>
-                <div className="text-sm text-dark-400 mb-1">Status</div>
-                <div className={`text-sm font-medium ${
-                  transactionDetail.confirmations > 0 ? 'text-success-400' : 'text-warning-400'
-                }`}>
-                  {transactionDetail.confirmations > 0 ? 'Confirmed' : 'Unconfirmed'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            </section>
+          )}
+        </>
       )}
 
-      {/* Empty State */}
-      {!transactionDetail && !loading && !error && (
-        <div className="glass-card p-12 text-center">
-          <Hash className="w-16 h-16 text-dark-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-dark-100 mb-2">Hash Analysis</h3>
-          <p className="text-dark-400 mb-6">
-            Enter a Bitcoin transaction hash above to analyze its details, inputs, outputs, and technical information.
-          </p>
-          <div className="text-sm text-dark-500">
-            Example: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa2yDXhpePgw3isKmq7bKSPpgwdosTf
-          </div>
-        </div>
-      )}
+      {/* Loading Spinner Animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

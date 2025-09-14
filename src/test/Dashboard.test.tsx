@@ -16,6 +16,26 @@ vi.mock('../components/WalletAnalysis', () => ({
   default: () => <div data-testid="wallet-analysis">WalletAnalysis</div>
 }))
 
+vi.mock('../components/EnhancedWalletAnalysis', () => ({
+  default: () => <div data-testid="wallet-analysis">EnhancedWalletAnalysis</div>
+}))
+
+vi.mock('../components/HashAnalysis', () => ({
+  default: () => <div data-testid="hash-analysis">HashAnalysis</div>
+}))
+
+vi.mock('../components/BlockAnalysis', () => ({
+  default: () => <div data-testid="block-analysis">BlockAnalysis</div>
+}))
+
+vi.mock('../components/LedgerAnalysis', () => ({
+  default: () => <div data-testid="ledger-analysis">LedgerAnalysis</div>
+}))
+
+vi.mock('../components/LiveTransactionTracker', () => ({
+  default: () => <div data-testid="live-transactions">LiveTransactionTracker</div>
+}))
+
 vi.mock('../components/StatCard', () => ({
   default: ({ title, value, change, trend }: { title: string; value: string; change?: string; trend?: string }) => (
     <div data-testid="stat-card">
@@ -30,9 +50,10 @@ describe('Dashboard', () => {
   it('renders header with title and search', () => {
     render(<Dashboard />)
 
-    expect(screen.getByText('CryptoAnalysis')).toBeInTheDocument()
-    expect(screen.getByText('Bitcoin Blockchain Intelligence Platform')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Search transactions, wallets, addresses...')).toBeInTheDocument()
+    expect(screen.getByText('CryptoGuard Analytics')).toBeInTheDocument()
+    expect(screen.getByText('Advanced Blockchain Analysis & Security')).toBeInTheDocument()
+    // No search input in current implementation, check for navigation instead
+    expect(screen.getByText('Overview')).toBeInTheDocument()
   })
 
   it('renders navigation tabs', () => {
@@ -73,13 +94,14 @@ describe('Dashboard', () => {
     expect(screen.getByText('47')).toBeInTheDocument()
   })
 
-  it('handles search input', () => {
+  it('handles tab navigation', () => {
     render(<Dashboard />)
 
-    const searchInput = screen.getByPlaceholderText('Search transactions, wallets, addresses...')
-    fireEvent.change(searchInput, { target: { value: 'bitcoin' } })
+    // Test tab navigation instead of search
+    const walletTab = screen.getByText('Wallet Analysis')
+    fireEvent.click(walletTab)
 
-    expect(searchInput).toHaveValue('bitcoin')
+    expect(screen.getByTestId('wallet-analysis')).toBeInTheDocument()
   })
 
   it('renders charts in overview tab', () => {
@@ -102,7 +124,7 @@ describe('Dashboard', () => {
   it('displays animated background elements', () => {
     render(<Dashboard />)
 
-    const container = screen.getByText('CryptoAnalysis').closest('.min-h-screen')
-    expect(container).toHaveClass('bg-dark-950', 'relative')
+    const container = screen.getByText('CryptoGuard Analytics').closest('.min-h-screen')
+    expect(container).toHaveClass('bg-gradient-to-br', 'from-dark-900', 'via-dark-800', 'to-dark-900', 'relative')
   })
 })
