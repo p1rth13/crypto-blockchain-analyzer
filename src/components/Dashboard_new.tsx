@@ -220,7 +220,7 @@ const Dashboard: React.FC = () => {
                     title="Total Transactions"
                     value={stats.totalTransactions.toLocaleString()}
                     icon={Activity}
-                    color="electric"
+                    color="blue"
                     change={"+15.7%"}
                     trend="up"
                   />
@@ -230,7 +230,7 @@ const Dashboard: React.FC = () => {
                     title="Suspicious Transactions"
                     value={stats.suspiciousTransactions.toLocaleString()}
                     icon={AlertTriangle}
-                    color="danger"
+                    color="red"
                     change={"+3.2%"}
                     trend="up"
                   />
@@ -240,7 +240,7 @@ const Dashboard: React.FC = () => {
                     title="Active Wallets"
                     value={stats.activeWallets.toLocaleString()}
                     icon={Bitcoin}
-                    color="bitcoin"
+                    color="yellow"
                     change={"+8.4%"}
                     trend="up"
                   />
@@ -250,7 +250,7 @@ const Dashboard: React.FC = () => {
                     title="Anomalies Detected"
                     value={stats.anomaliesDetected.toLocaleString()}
                     icon={Shield}
-                    color="success"
+                    color="green"
                     change={"-12.1%"}
                     trend="down"
                   />
@@ -414,7 +414,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="status-online w-4 h-4 bg-success-500 rounded-full"></div>
               </div>
-              <AnomalyDetection detailed />
+              <AnomalyDetection />
             </div>
           )}
 

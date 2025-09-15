@@ -22,8 +22,7 @@ import {
 import BlockCypherService from '../services/blockCypherService';
 import type { 
   DashboardMetrics, 
-  BlockCypherBlock, 
-  BlockCypherTransaction 
+  BlockCypherBlock
 } from '../services/blockCypherService';
 import LiveTransactionFeed from './LiveTransactionFeed';
 import LedgerAnalysis from './LedgerAnalysis';
@@ -31,14 +30,6 @@ import BlockAnalysis from './BlockAnalysis';
 import HashAnalysis from './HashAnalysis';
 import WalletAnalysis from './WalletAnalysis';
 import AnomalyDetection from './AnomalyDetection';
-
-interface LatestBlock {
-  hash: string;
-  height: number;
-  time: number;
-  block_index: number;
-  txIndexes: number[];
-}
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -49,7 +40,6 @@ const Dashboard: React.FC = () => {
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>(null);
-  const [loadingSearch, setLoadingSearch] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -84,20 +74,13 @@ const Dashboard: React.FC = () => {
   const handleSearch = async (query: string) => {
     if (!query.trim()) return;
     
-    setLoadingSearch(true);
     try {
       const results = await BlockCypherService.search(query.trim());
       setSearchResults(results);
     } catch (error) {
       console.error('Search error:', error);
       setSearchResults({ error: 'Search failed. Please check your query format.' });
-    } finally {
-      setLoadingSearch(false);
     }
-  };
-
-  const formatBTC = (satoshis: number): string => {
-    return (satoshis / 100000000).toFixed(8);
   };
 
   const formatUSD = (amount: number): string => {

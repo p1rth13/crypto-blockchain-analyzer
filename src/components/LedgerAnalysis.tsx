@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Database,
-  TrendingUp,
-  TrendingDown,
   BarChart3,
-  PieChart,
-  Activity,
   DollarSign,
   Hash,
-  Clock,
   ArrowUpRight,
   ArrowDownLeft,
   RefreshCw,
-  Download,
-  Filter,
   Search,
-  AlertTriangle,
-  CheckCircle,
-  Eye,
-  Calendar,
-  Users,
-  Zap
 } from 'lucide-react';
-import BlockCypherService from '../services/blockCypherService';
 
 interface LedgerEntry {
   blockHeight: number;
@@ -147,7 +133,7 @@ const LedgerAnalysis: React.FC = () => {
         address: `bc1${Math.random().toString(36).substr(2, 39)}`,
         balanceChange,
         newBalance: Math.abs(balanceChange) + Math.floor(Math.random() * 10000000000),
-        type: balanceChange > 0 ? 'credit' : 'debit',
+        type: (balanceChange > 0 ? 'credit' : 'debit') as 'credit' | 'debit',
         confirmations: Math.floor(Math.random() * 100) + 1
       });
     }
@@ -419,7 +405,7 @@ const LedgerAnalysis: React.FC = () => {
               padding: 'var(--space-6)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                <Users style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                <Database style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
                 <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Address Statistics</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

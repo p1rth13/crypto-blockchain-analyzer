@@ -150,49 +150,6 @@ export class BlockCypherService {
   private static lastCallTime = 0;
   private static readonly RATE_LIMIT_MS = 350; // Slightly above 3 req/sec to be safe
 
-  // Mock data for development (to handle CORS issues)
-  private static mockChainInfo: BlockCypherChainInfo = {
-    name: 'BTC.main',
-    height: 867234,
-    hash: '00000000000000000003f2b2d8b9b9a4c2f4e5d6a7b8c9d0e1f2a3b4c5d6e7f8',
-    time: new Date().toISOString(),
-    latest_url: '',
-    previous_hash: '',
-    previous_url: '',
-    peer_count: 8,
-    high_fee_per_kb: 50000,
-    medium_fee_per_kb: 25000,
-    low_fee_per_kb: 10000,
-    unconfirmed_count: Math.floor(Math.random() * 20000) + 10000,
-    last_fork_height: 0,
-    last_fork_hash: ''
-  };
-
-  private static mockTransactions: BlockCypherTransaction[] = [
-    {
-      block_hash: '',
-      block_height: -1,
-      block_index: -1,
-      hash: 'abc123def456789fedcba',
-      addresses: ['1A2B3C4D5E6F7G8H9I0J', '1K2L3M4N5O6P7Q8R9S0T'],
-      total: Math.floor(Math.random() * 100000000) + 10000000,
-      fees: Math.floor(Math.random() * 50000) + 5000,
-      size: 250,
-      vsize: 141,
-      preference: 'high',
-      relayed_by: '',
-      received: new Date().toISOString(),
-      ver: 1,
-      double_spend: false,
-      vin_sz: 1,
-      vout_sz: 2,
-      opt_in_rbf: false,
-      confirmations: 0,
-      inputs: [],
-      outputs: []
-    }
-  ];
-
   private static async rateLimitedCall<T>(
     endpoint: string,
     options: RequestInit = {}

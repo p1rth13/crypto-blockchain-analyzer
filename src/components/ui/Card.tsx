@@ -1,5 +1,5 @@
 import React from 'react';
-import { cardVariants } from '../utils/designTokens';
+import { cardVariants } from '../../utils/designTokens';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'elevated' | 'flat';

@@ -57,7 +57,7 @@ describe('Comprehensive UI Test Suite', () => {
           title="Test Card"
           value="1,000"
           icon={Activity}
-          color="electric"
+          color="blue"
         />
       )
       
@@ -72,12 +72,12 @@ describe('Comprehensive UI Test Suite', () => {
           title="Electric Theme"
           value="2,500"
           icon={Activity}
-          color="electric"
+          color="blue"
         />
       )
       
       // Check electric color usage
-      expect(container.querySelector('.bg-electric-500\\/20')).toBeInTheDocument()
+      expect(container.querySelector('.bg-blue-500\\/20')).toBeInTheDocument()
     })
 
     it('shows trend indicators with proper colors', () => {
@@ -86,14 +86,14 @@ describe('Comprehensive UI Test Suite', () => {
           title="Success Card"
           value="5,000"
           icon={Activity}
-          color="success"
+          color="green"
           change="+10%"
           trend="up"
         />
       )
       
       // Check success color usage
-      expect(container.querySelector('.text-success-400')).toBeInTheDocument()
+      expect(container.querySelector('.text-green-400')).toBeInTheDocument()
       expect(screen.getByText('vs last month')).toBeInTheDocument()
     })
   })

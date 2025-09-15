@@ -1,6 +1,6 @@
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
-import { buttonVariants } from '../utils/designTokens';
+import type { LucideIcon } from 'lucide-react';
+import { buttonVariants } from '../../utils/designTokens';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'ghost';

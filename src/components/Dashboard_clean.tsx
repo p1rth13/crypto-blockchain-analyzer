@@ -1,23 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart3, 
   Shield, 
-  AlertTriangle, 
-  Bitcoin, 
   Activity,
-  Zap,
-  TrendingUp,
-  Eye,
+  Loader,
   Settings,
   Bell,
-  ExternalLink,
-  Copy,
-  Loader,
-  Hash,
-  Database,
-  Wallet,
   Search,
-  Download
 } from 'lucide-react';
 import TransactionVolumeTrends from './TransactionVolumeTrends';
 import AnomalyDetection from './AnomalyDetection';
@@ -28,32 +16,22 @@ import LedgerAnalysis from './LedgerAnalysis';
 import LiveTransactionTracker from './LiveTransactionTracker';
 import StatCard from './StatCard';
 
-interface LatestBlock {
-  hash: string;
-  height: number;
-  time: number;
-  block_index: number;
-  txIndexes: number[];
-}
-
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoaded, setIsLoaded] = useState(false);
-  const [latestBlock, setLatestBlock] = useState<LatestBlock | null>(null);
-  const [loadingBlock, setLoadingBlock] = useState(false);
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'anomalies', label: 'Anomaly Detection', icon: Shield },
     { id: 'wallets', label: 'Wallet Analysis', icon: Activity },
-    { id: 'hash', label: 'Hash Analysis', icon: Hash },
-    { id: 'block', label: 'Block Analysis', icon: Database },
-    { id: 'ledger', label: 'Ledger Portfolio', icon: Wallet },
-    { id: 'live', label: 'Live Transactions', icon: Zap },
+    { id: 'hash', label: 'Hash Analysis', icon: Activity },
+    { id: 'block', label: 'Block Analysis', icon: Activity },
+    { id: 'ledger', label: 'Ledger Portfolio', icon: Activity },
+    { id: 'live', label: 'Live Transactions', icon: Activity },
   ];
 
   if (!isLoaded) {
@@ -130,7 +108,7 @@ const Dashboard: React.FC = () => {
               <StatCard
                 title="TOTAL TRANSACTIONS"
                 value="2,156,420"
-                icon={BarChart3}
+                icon={Activity}
                 color="blue"
                 change="+15.7%"
                 trend="up"
@@ -138,7 +116,7 @@ const Dashboard: React.FC = () => {
               <StatCard
                 title="SUSPICIOUS TRANSACTIONS"
                 value="3,247"
-                icon={AlertTriangle}
+                icon={Shield}
                 color="yellow"
                 change="+3.2%"
                 trend="up"
@@ -146,7 +124,7 @@ const Dashboard: React.FC = () => {
               <StatCard
                 title="ACTIVE WALLETS"
                 value="18,930"
-                icon={Bitcoin}
+                icon={Activity}
                 color="green"
                 change="+8.4%"
                 trend="up"

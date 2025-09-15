@@ -4,30 +4,9 @@ import {
   Search,
   Hash,
   Clock,
-  Users,
-  Zap,
-  Database,
   Activity,
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  ArrowDownLeft,
   RefreshCw,
-  Filter,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  ExternalLink,
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  Calendar,
-  HardDrive,
-  Cpu,
-  Target,
-  Shield
 } from 'lucide-react';
-import BlockCypherService from '../services/blockCypherService';
 
 interface BlockDetails {
   hash: string;
@@ -171,7 +150,7 @@ const BlockAnalysis: React.FC = () => {
     averageFees: 0.00045 // BTC
   });
 
-  const generateMockTransactions = (blockHeight: number): BlockTransaction[] => {
+  const generateMockTransactions = (): BlockTransaction[] => {
     const transactions = [];
     const txCount = Math.floor(Math.random() * 3000) + 500;
     
@@ -234,7 +213,7 @@ const BlockAnalysis: React.FC = () => {
     setState(prev => ({ ...prev, selectedBlock: block, blockTransactions: [] }));
     
     // Fetch transactions for this block
-    const transactions = generateMockTransactions(block.height);
+    const transactions = generateMockTransactions();
     setState(prev => ({ ...prev, blockTransactions: transactions }));
   };
 
@@ -471,7 +450,7 @@ const BlockAnalysis: React.FC = () => {
               padding: 'var(--space-6)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                <Cpu style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
+                <Activity style={{ width: '20px', height: '20px', color: 'var(--color-primary-500)' }} />
                 <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Hash Rate & Difficulty</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Hash,
   Search,
@@ -8,27 +8,10 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle,
-  Info,
   Copy,
-  ExternalLink,
   Database,
   Activity,
-  Users,
-  Zap,
-  DollarSign,
-  Eye,
-  RefreshCw,
-  Filter,
-  TrendingUp,
-  TrendingDown,
-  Link,
-  Layers,
-  Target,
-  FileText,
-  Calendar,
-  HardDrive
 } from 'lucide-react';
-import BlockCypherService from '../services/blockCypherService';
 
 interface TransactionInput {
   previousTxHash: string;
@@ -940,7 +923,7 @@ const HashAnalysis: React.FC = () => {
                         border: `1px solid ${tx.relationship === 'parent' ? 'var(--color-warning-300)' : 
                                              tx.relationship === 'child' ? 'var(--color-success-300)' : 'var(--color-primary-300)'}`
                       }}>
-                        <Link style={{ 
+                        <Activity style={{ 
                           width: '16px', 
                           height: '16px', 
                           color: tx.relationship === 'parent' ? 'var(--color-warning-600)' : 

@@ -9,9 +9,6 @@ import {
   Loader,
   Wallet,
   Activity,
-  Clock,
-  ArrowUpRight,
-  ArrowDownLeft
 } from 'lucide-react';
 
 interface WalletData {
@@ -38,7 +35,6 @@ const WalletAnalysis: React.FC = () => {
   const [walletData, setWalletData] = useState<WalletData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
 
   const analyzeWallet = async () => {
     if (!searchWallet.trim()) return;
@@ -661,7 +657,7 @@ const WalletAnalysis: React.FC = () => {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <button
-                      onClick={() => setSelectedWallet(wallet.address)}
+                      onClick={() => {/* View details functionality can be added here */}}
                       style={{
                         padding: 'var(--space-1) var(--space-2)',
                         background: 'var(--color-primary-500)',
